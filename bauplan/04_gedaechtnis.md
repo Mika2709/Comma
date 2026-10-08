@@ -176,20 +176,59 @@ Ein Migrations-Job liest die bestehenden `/memory`-Dateien (semantic, environmen
 
 ---
 
-## 8. Hindsight-Fork: Änderungen
+## 8. Hindsight-Fork: Betrieb und Änderungen
 
-Die genauen Dateien und Funktionen stehen im Abschnitt "Fork-Punkte" unten (aus der Code-Recherche). Inhaltlich:
-1. **Herkunft pro Nachricht:** `retain` nimmt eine Liste von Nachrichten mit ID, Zeit, Sprecher. Jeder extrahierte Fakt speichert die Liste der Nachrichten-IDs, aus denen er stammt. Die API gibt sie bei `recall` mit zurück.
-2. **Gültigkeitsfelder** aus Abschnitt 2 als Spalten, plus Migration.
-3. **Widerspruchsprüfung und Anwendung** nach Abschnitt 3 als Schritt nach der Extraktion. Prompt nach Graphiti, auf Deutsch geprüft.
-4. **Recall-Filter** auf gültig/aktiv und Parameter `historisch`.
-5. **Zeitfaktor** aus Abschnitt 5 im Ranking (oder in Comma nach dem Recall, wenn das sauberer ist; dann liefert der Dienst die Rohscores).
-6. **Kategorien und Lebensdauer** im Extraktions-Prompt und Schema.
-7. **Themenseiten** als Datensatztyp.
-8. **Modelle konfigurierbar** auf Qwen3-Embedding und Qwen3-Reranker über die Anbieter aus `02`, LLM DeepSeek V4.1 Flash über Together.
-9. **Löschen mit Grabstein.**
+Basis: `vectorize-io/hindsight` Commit `1152717` (2026-10-08), Paket `hindsight-api-slim` 0.10.2, MIT. Pfade unten relativ zu `hindsight-api-slim/hindsight_api/`. Python-Dienst (FastAPI plus eingebetteter Worker), Port 8888, Alembic-Migrationen beim Start.
 
----
+### Betrieb
+- Als Git-Subtree unter `services/hindsight/` im Comma-Fork. Eigenes Image aus `docker/standalone/Dockerfile`, Target `api-only`, `INCLUDE_LOCAL_MODELS=false` (keine lokalen Modelle, alles über APIs).
+- Neuer Compose-Dienst `memory`, nur im internen Docker-Netz erreichbar.
+- Datenbank: eigene DB `hindsight` im bestehenden Postgres. Das Postgres-Image wird von `postgres:16-bookworm` auf `pgvector/pgvector:pg16` umgestellt (gleiches Datenformat, Volume bleibt). Extensions `vector`, `pg_trgm`, `btree_gin`. `configure` legt DB und Rolle an.
+- Auth: `HINDSIGHT_API_TENANT_EXTENSION=hindsight_api.extensions.builtin.tenant:ApiKeyTenantExtension`, Key in `secrets.json`. Ohne das wäre die API offen.
+- Eine Bank pro Nutzer: `bank_id = user-<user_id>`.
+- BM25 auf Deutsch: `HINDSIGHT_API_TEXT_SEARCH_EXTENSION_NATIVE_LANGUAGE=german`.
+- Retain asynchron mit `operation_id` (UUID, idempotent), Status über `GET …/operations/{id}`.
+- Reflect wird nicht benutzt (teuer, agentische Schleife). Recall liefert die Fakten.
+- Observations (Hindsights eigene Konsolidierung zu "aktuellem Stand") bleiben an. Sie werden beim Recall mit abgefragt.
+
+### API, die Comma nutzt
+| Zweck | Aufruf |
+|---|---|
+| Erfassen | `POST /v1/default/banks/{bank_id}/memories` (`api/http.py:10010`) |
+| Suchen | `POST …/memories/recall` (`:6131`) |
+| Lesen, invalidieren | `GET/PATCH …/memories/{id}` (`:6012`, `:6044`) |
+| Listen mit Filtern | `GET …/memories/list` (`:5781`) |
+| Konsolidierung anstoßen | `POST …/consolidate` (`:9663`) |
+| Entitäten | `GET …/entities` (`:6709`) |
+
+### Fork-Änderungen
+1. **Herkunft pro Fakt.** Comma sendet pro Erfassung ein Item, dessen `content` ein JSON-Array von Turns ist (`{id, role, time, content}`), mit `timestamp` der letzten Nachricht und `document_id = turn:<turn_id>` (eindeutig, sonst ersetzt `update_mode=replace` alte Fakten, `api/http.py:1213-1218`). Chunking schneidet an Turn-Grenzen (`engine/retain/fact_extraction.py:822-825,881`).
+   - Neues Feld `source_message_ids: list[str]` in `ExtractedFact` (`fact_extraction.py:261`) und den Varianten (`:368`, `:467`, `:517`), Regel im Prompt `_BASE_FACT_EXTRACTION_PROMPT` (`:1058`): "Nenne die IDs der Turns, aus denen der Fakt stammt." Vorbild: Graphitis `episode_indices`.
+   - Parsing und Prüfung gegen die IDs im Chunk (`fact_extraction.py` ab etwa `:2225`), durchreichen über `ProcessedFact` (`engine/retain/types.py:323,357,450-494`), Insert (`engine/memories/pg/writes.py:31-125`, `engine/db/ops_postgresql.py` `insert_facts_batch`).
+   - Alembic-Migration: Spalte `source_message_ids text[]` mit GIN-Index in `memory_units` **und** `invalidated_memory_units` (sonst scheitert `invalidate_memory`, `writes.py:359-377,418-450`).
+   - Spaltenlisten im Recall: `cols` in `engine/memories/pg/recall.py:115`, `pool_cols` (`:472`), `RetrievalResult` (`engine/search/types.py:47,110`), `RecallResult` (`api/http.py:600`), Export/Import (`engine/transfer/schema.py`).
+2. **Kategorie, Lebensdauer, Gültigkeit.** Spalten `kategorie`, `lebensdauer`, `valid_from`, `invalid_at`, `superseded_by uuid`, `expires_at`, `status_flag` in `memory_units` und `invalidated_memory_units`, Index `(bank_id, invalid_at)`.
+   - Extraktions-Schema um `kategorie`, `lebensdauer`, `valid_at`, `invalid_at`, `expires_hint`, `relative_expression` erweitern. Das heute verworfene `fact_kind` speichern statt wegwerfen (`fact_extraction.py:2236-2239`).
+   - Ersetzte Fakten bleiben mit `invalid_at` in `memory_units` (für "was galt früher?"). Nur Löschen und abgelaufene Status-Fakten wandern ins Archiv `invalidated_memory_units`.
+3. **Recall-Filter.** Standard "gültig jetzt": `invalid_at IS NULL OR invalid_at > now` und `expires_at IS NULL OR expires_at > now`. In **jeden** Suchweg einbauen, nach dem Muster `updated_range_clause`: semantic plus BM25 (`engine/memories/pg/recall.py:28`, `engine/sql/postgresql.py:320,351`), temporal (`pg/recall.py` etwa `:470-495`), Graph-Seeds und Expansionen (`engine/memories/pg/link_expansion.py:51,299,373`, SQL in `engine/db/ops_postgresql.py`). `RecallRequest` (`api/http.py:492`) bekommt `include_invalid` und `valid_at`.
+4. **Widerspruchsprüfung.** Neuer Worker-Job nach Phase 2 des Retain (Einhängepunkt nach `_insert_facts_and_links`, `engine/retain/orchestrator.py:762`, oder als Operationstyp neben `run_consolidation_job`, `engine/consolidation/consolidator.py:1469`), damit Retain nicht blockiert.
+   - Kandidaten: semantische Nachbarn aus Phase 1 (`engine/memories/pg/links.py:581ff`, Ähnlichkeit ≥ 0,7), Fakten mit gemeinsamen Entitäten (`unit_entities`), nur gültige.
+   - Prompt nach Graphiti `resolve_edge` (`graphiti_core/prompts/dedupe_edges.py:44-101`): zwei Listen, Ausgabe `duplicate_facts` und `contradicted_facts`, plus unser Ergebnis `ergänzung`. Auf Deutsch getestet. Apache-2.0-Hinweis im Kopf der Datei.
+   - Zeitlogik nach `resolve_edge_contradictions` (`graphiti_core/utils/maintenance/edge_operations.py:547-582,853-866`): Ist der alte Fakt älter, bekommt er `invalid_at = valid_from des neuen` und `superseded_by`. Ist der neue älter als ein Widerspruchskandidat, läuft der neue sofort ab.
+   - Regeln aus Abschnitt 3: Duplikat ergänzt nur Herkunft, Status-Widerspruch löscht ins Archiv, Unsicherheit unter 0,6 erzeugt einen Link `moeglicher_widerspruch`.
+   - Danach abgeleitete Observations bereinigen (`fact_storage.delete_stale_observations_for_memories`, `engine/retain/fact_storage.py:147`) und `audit_log`-Eintrag.
+5. **Status-Ablauf.** Neue Aufgabe in `MaintenanceLoop` (`engine/maintenance.py:114`, Muster `_run_retention` `:249-258` und `_purge_table_in_batches` `:295`): abgelaufene Status-Fakten in Batches mit `FOR UPDATE SKIP LOCKED` ins Archiv verschieben (`invalidate_memory`). Konfiguration `HINDSIGHT_API_STATUS_SWEEP_INTERVAL_SECONDS` (Standard 3600).
+6. **Zeitgewichtung.**
+   - `_RECENCY_ALPHA` (`engine/search/reranking.py:35`, heute fest 0,2, also nur ±10 Prozent) konfigurierbar machen, Standard 0,8.
+   - Neue Kurve `fresh_boost` in `compute_recency_decay` (`reranking.py:56-78`) und `RECENCY_DECAY_FUNCTIONS` (`config.py:1350`): Alter bis 48 h = 1,0, danach exponentiell mit Halbwertszeit 30 Tage.
+   - Recency nach Aussagezeit: In `_recency_for_unit` (`reranking.py:163`) `mentioned_at` vorrangig statt `occurred_start`.
+   - Kategorie-Regel: Für `person`, `vorliebe`, `entscheidung`, `fakt`, `ablauf`, `kommunikation`, `ziel` ist der Recency-Faktor neutral (1,0), außer dem Frische-Bonus der ersten 48 h. Abfall nur für `status`, `termin`, `projekt`.
+   - Frische schützen: In `trim_merged_candidates` (`engine/search/recall_boost.py:195`) Plätze für Fakten mit `mentioned_at ≥ now - 48h` reservieren.
+   - Eigener Suchweg "frisch": SQL-Arm nach `mentioned_at DESC` mit niedriger Ähnlichkeitsschwelle, fließt in die RRF (`engine/memory_engine.py:9800-9806`, Store `engine/memories/postgres.py:124`).
+   - Comma setzt bei jedem Recall `query_timestamp` auf jetzt.
+7. **Deutsche Zeitangaben.** Der Regex-Fallback `_infer_temporal_date` (`fact_extraction.py:89-125`) kennt nur Englisch. Statt ihn zu erweitern: Das neue Feld `relative_expression` wird nach der Extraktion mit `dateparser` (ist schon Abhängigkeit) in Sprache de und en aufgelöst, Basis `mentioned_at` in der Zeitzone des Nutzers. Gelingt das, überschreibt es `occurred_start`. Weicht es vom Modell-Datum ab, wird beides protokolliert.
+8. **Themenseiten.** Hindsight hat Mental Models (gepflegte Zusammenfassungen, Tabelle `mental_models`, Refresh über Reflect). Prüfe die API dafür. Wenn Mental Models programmatisch angelegt und mit vorgegebenem Text aktualisiert werden können, sind sie die Themenseiten. Sonst wird im Fork ein Datensatztyp `topic_page` (Titel, Typ, Text, verknüpfte Fakt-IDs, Embedding) mit CRUD-Routen ergänzt. In beiden Fällen schreibt die Crew den Text, nicht Reflect.
+9. **Upstream:** Alle Änderungen als eigene Module und Migrationen, damit `git subtree pull` von `vectorize-io/hindsight` möglich bleibt. Tests im Fork für jede Änderung.
 
 ## 9. Tools für Router und Worker
 
@@ -211,12 +250,21 @@ Die genauen Dateien und Funktionen stehen im Abschnitt "Fork-Punkte" unten (aus 
 
 ## 10. Modelle
 
-- Embedding: Qwen3-Embedding. Größe und Anbieter siehe `02`, Abschnitt "Anbieter und Modelle".
-- Reranker: Qwen3-Reranker. Größe und Anbieter siehe `02`.
-- Extraktion, Widerspruchsprüfung, Themenseiten: DeepSeek V4.1 Flash (Together).
-- Nächtliche Prüfung unsicherer Widersprüche: Hauptmodell im Batch.
+Das Embedding-Modell muss vor den ersten echten Daten feststehen. Hindsight bricht ab, wenn die Dimension bei gefüllter Tabelle wechselt (`migrations.py:763`), und pgvector-HNSW erlaubt höchstens 2000 Dimensionen (`migrations.py:732`).
 
----
+| Zweck | Modell | Anbieter und Weg |
+|---|---|---|
+| Embedding | Qwen3-Embedding-8B mit 1536 Dimensionen (Matryoshka-Kürzung) | DeepInfra, OpenAI-kompatibel `https://api.deepinfra.com/v1/openai/embeddings`, Hindsight `EMBEDDINGS_PROVIDER=openai`, `EMBEDDINGS_OPENAI_BASE_URL=https://api.deepinfra.com/v1/openai`, `EMBEDDINGS_OPENAI_MODEL=Qwen/Qwen3-Embedding-8B`, `EMBEDDINGS_OPENAI_DIMENSIONS=1536` |
+| Reranker | Qwen3-Reranker-4B | DeepInfra über Hindsights `litellm-sdk`-Reranker (Modell `deepinfra/Qwen/Qwen3-Reranker-4B`), `RERANKER_MAX_CANDIDATES=50` |
+| Extraktion, Widerspruch, Observations | DeepSeek V4.1 Flash | Together, `HINDSIGHT_API_LLM_PROVIDER=openai`, `LLM_BASE_URL=https://api.together.xyz/v1`, `LLM_MODEL=deepseek-ai/DeepSeek-V4.1-Flash` |
+| Prüfung unsicherer Widersprüche (nachts) | Hauptmodell | über Comma |
+
+Regeln beim Einrichten (vor den ersten Daten, mit echten Calls):
+1. Prüfe, ob DeepInfra `dimensions` beachtet (Vektorlänge 1536). Wenn nicht: Qwen3-Embedding-0.6B (1024 Dimensionen, passt ohne Kürzung).
+2. Query-Präfix setzen, weil der Server kein Instruct-Template anwendet: `HINDSIGHT_API_EMBEDDINGS_QUERY_PREFIX` = "Instruct: Given a message from a conversation with a personal assistant, retrieve stored facts about the user that help to answer it\nQuery: ". Passage-Präfix leer.
+3. Prüfe den Reranker-Weg über `litellm-sdk`. Wenn er nicht geht: Hindsights eingebauter Provider `siliconflow` mit `Qwen/Qwen3-Reranker-8B` (dann zusätzlich SiliconFlow-Key beim Nutzer anfragen).
+4. Miss die Reranker-Latenz für 50 Kandidaten. Liegt p95 mit Qwen3-Reranker-8B unter 700 ms, nimm 8B, sonst bleibt 4B.
+5. Prüfe, ob Together für DeepSeek `response_format` (JSON-Modus) beachtet, und setze `HINDSIGHT_API_LLM_OPENAI_COMPATIBLE_JSON_MODE` entsprechend.
 
 ## 11. Abnahme
 
