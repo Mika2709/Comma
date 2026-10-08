@@ -100,7 +100,7 @@ Wenn Windows-MCP auf Windows Server nicht sauber läuft (die Doku listet offizie
 
 ## 5. Rechner des Nutzers
 
-Die Antwort auf Startfrage 15 (`README.md`) entscheidet:
+Die Antwort auf Startfrage 17 (`README.md`) entscheidet:
 
 **macOS**
 - Bestehender Weg über `salix-connect` (selbst gebaut, Start mit `--connector-token`, siehe `02` Selbsthost-Fix 2) und den Swift-Helfer.

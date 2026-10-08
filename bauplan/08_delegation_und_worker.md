@@ -67,7 +67,7 @@ Pfad-Abkürzungen: `sa/` = `systems/apps/`, `cl/` = `clients/`, `cn/` = `systems
 - Vor "erledigt" prüft der Router, dass das Ergebnis da und zugestellt ist (V28): Datei existiert, Mail-Entwurf liegt vor, Termin steht im Kalender. Dafür reicht ein Lese-Tool-Call.
 
 ### Abnahme standardmäßig aus
-- Owner-Entscheidung (beim Start bestätigt, `README.md` Frage 17), im PR dokumentieren (AGENTS.md: Schwächung einer bestehenden Garantie braucht die Entscheidung des Owners).
+- Owner-Entscheidung (beim Start bestätigt, `README.md` Frage 19), im PR dokumentieren (AGENTS.md: Schwächung einer bestehenden Garantie braucht die Entscheidung des Owners).
 - `tool_policy.ex:203-209` neu: "Setze `completed`, sobald das Ergebnis zugestellt ist. `ready_for_review` nur, wenn der Nutzer eine Entscheidung treffen muss, die du nicht treffen darfst. Freigaben für unumkehrbare Aktionen laufen über das Aktions-Gate (`10`), nicht über die Abnahme."
 - `task_completion.ex:6-31`: Router-Selbstabschluss für alle eigenen Tasks erlauben, nicht nur einfache Einmal-Tasks. Schedule-, Triage- und Workflow-Tasks behalten ihre eigenen Regeln.
 - Die bestehende Annahme-Route bleibt für die seltenen `ready_for_review`-Fälle.

@@ -22,24 +22,26 @@ Stell dem Nutzer diese Fragen in einer einzigen Nachricht. Kurz, ohne Erklärung
 7. Exa-API-Key (Websuche der Agenten), falls er Websuche will. Empfehlung: ja.
 8. OpenAI-API-Key für Voice-to-Voice mit GPT-Live.
 9. Telegram-Bot-Token (Ausweichkanal für Meldungen, wenn die App zu ist). Optional, empfohlen.
-10. Apple-Developer-Konto (Team-ID, APNs-Key `.p8`, Key-ID) für die iPhone-App mit Push. Ohne Konto läuft das Handy nur über Telegram.
+10. Apple-Developer-Konto (99 $ pro Jahr): Team-ID, APNs-Key `.p8` mit Key-ID, App-Store-Connect-API-Key (Key-ID, Issuer-ID) für den automatischen TestFlight-Build in GitHub Actions. Ohne Konto läuft das Handy nur über Telegram. Einen Mac braucht er nicht (`13`).
 
 **Maschinen**
 11. Linux-VPS für den Comma-Server: Empfehlung Hetzner Cloud CPX42 (8 vCPU, 16 GB). IP, SSH-Zugang. Wenn er noch keinen hat: bestellen lassen, Ubuntu 24.04.
 12. Windows-VPS mit echtem Desktop (RDP) für die Computersteuerung des Assistenten: Empfehlung Contabo Cloud VPS 30 mit Windows Server 2022 und Lizenz von Contabo (8 vCPU, 24 GB). IP, Administrator-Passwort. Details in `11_computer.md`.
 13. Domain für HTTPS (Comma braucht vier Origins unter einer Domain, siehe `02`). DNS-Zugang (für Let's-Encrypt-Zertifikate).
 14. Tailscale-Konto (privates Netz zwischen beiden VPS, seinem Rechner und dem Handy).
+15. SMTP-Zugang für Login-Codes (Host, Port, Absender, Benutzer, Passwort), z.B. vom eigenen Mail-Anbieter. Bei öffentlichem Betrieb Pflicht.
+16. Backup-Speicher: Hetzner Storage Box BX11 (oder Backblaze B2), Zugangsdaten. Dazu ein restic-Passwort, das er sicher aufbewahrt.
 
 **Persönliche Fakten**
-15. Betriebssystem seines eigenen Rechners: macOS oder Windows. Davon hängt die lokale Steuerung ab (`11_computer.md`).
-16. Zeitzone. Annahme: `Europe/Berlin`.
+17. Betriebssystem seines eigenen Rechners: macOS oder Windows. Davon hängt die lokale Steuerung ab (`11_computer.md`).
+18. Zeitzone. Annahme: `Europe/Berlin`.
 
 **Bestätigen (von Claude für ihn entschieden, weil er keine offenen Fragen wollte)**
-17. Menschliche Abnahme von Helfer-Ergebnissen ist standardmäßig aus. Schutz kommt nur über das Aktions-Gate für unumkehrbare Aktionen.
-18. Beide proaktiven Budgets fallen ersatzlos weg. Es bleibt nur ein Schleifenschutz, der identische Wiederholungen desselben Ereignisses blockiert, nie unterschiedliche Ereignisse.
-19. Hindsight läuft als eigener, geforkter Dienst neben Comma (nicht nach Elixir portiert).
+19. Menschliche Abnahme von Helfer-Ergebnissen ist standardmäßig aus. Schutz kommt nur über das Aktions-Gate für unumkehrbare Aktionen.
+20. Beide proaktiven Budgets fallen ersatzlos weg. Es bleibt nur ein Schleifenschutz, der identische Wiederholungen desselben Ereignisses blockiert, nie unterschiedliche Ereignisse.
+21. Hindsight läuft als eigener, geforkter Dienst neben Comma (nicht nach Elixir portiert).
 
-Wenn er bei 17 bis 19 widerspricht, gilt seine Antwort. Trag sie in `01_zielbild_und_entscheidungen.md` ein.
+Wenn er bei 19 bis 21 widerspricht, gilt seine Antwort. Trag sie in `01_zielbild_und_entscheidungen.md` ein.
 
 ---
 
