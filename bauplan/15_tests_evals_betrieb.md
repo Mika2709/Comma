@@ -16,7 +16,7 @@ Regeln aus `AGENTS.md`, angewendet auf diesen Plan:
 - Elixir: ExUnit im jeweiligen App-Ordner unter `systems/apps/*/test`.
 - Lean: Kernel-Build mit Beweisen muss grün sein. TLA: `make tla`, erwartete Gegenbeispiele bleiben verletzend.
 - Befehle: `make test-systems`, `make test-clients`, `make test-clients-smoke`, `make test-policy`. Native-Bridge: `pnpm --dir clients check:foundation`, `pnpm --dir clients typecheck && pnpm --dir clients lint`.
-- Externe Anbieter (OpenRouter, Together, Workers AI, Hindsight, Embeddings) in Tests nur über aufgezeichnete Antworten oder lokale Fakes am Adapter-Rand. Der Hindsight-Fork hat eigene Tests in seinem Repo.
+- Externe Anbieter (OpenRouter, Together, DeepInfra, Hindsight) in Tests nur über aufgezeichnete Antworten oder lokale Fakes am Adapter-Rand. Der Hindsight-Fork hat eigene Tests in seinem Repo.
 
 Pflicht-Testfälle pro Bereich stehen jeweils im Abschnitt "Abnahme" der Themen-Dateien. Zusätzlich:
 - Rebuild: Auslöser feuert bei Cache-Ablauf über Schwelle, nicht darunter; Notbremse feuert; Rebuild während laufendem Turn; Crew-Teilausfall; Verifier-Korrektur; Wiederanlauf nach Neustart mitten im Rebuild.

@@ -14,10 +14,10 @@ Stell dem Nutzer diese Fragen in einer einzigen Nachricht. Kurz, ohne Erklärung
 
 **Konten und Schlüssel**
 1. Hauptmodell: Welcher Anbieter und welches Modell für den Hauptchat (Router) und die Helfer (Worker)? Empfehlung: Claude Opus 5.5 (`claude-opus-5-5`) über die Anthropic-API, oder ein vorhandenes Claude- oder Codex-Abo (Comma unterstützt Abo-Konten). API-Key oder Abo-Login.
-2. Together-AI-API-Key (DeepSeek V4.1 Flash für Cleanup-Crew, Auditor, ersten Verifier und als Entscheidungsmodell-Kandidat).
-3. OpenRouter-API-Key (Entscheidungsmodelle Jev, Luna Decisions, Clef-flash, Liquid d1 und das Modell des zweiten Verifiers).
-4. Cloudflare-Konto mit API-Token für Workers AI (Clef 27B für das Aktions-Gate). Siehe `02_infrastruktur_und_selfhost.md` für weitere Dienste über diesen Token.
-5. Anbieter-Key für Embeddings und Reranker (siehe `04_gedaechtnis.md`, Abschnitt Modelle).
+2. Together-AI-API-Key (DeepSeek V4.1 Flash für Cleanup-Crew, Erfasser, Auditor, ersten Verifier und als Entscheidungsmodell-Kandidat).
+3. OpenRouter-API-Key (Entscheidungsmodelle Jev, Luna Decisions, Clef, Clef-flash, Liquid d1, das Modell des zweiten Verifiers, Ausweichweg für DeepSeek).
+4. DeepInfra-API-Key (Qwen3-Embedding und Qwen3-Reranker).
+5. Eine virtuelle Karte mit Limit für Käufe des Assistenten (E67). Er trägt sie später selbst per RDP in das Browserprofil auf dem Windows-VPS ein, nie im Chat.
 6. Composio-API-Key und verbundenes Gmail-Konto (E-Mail-Weckung). Kalender, Drive, Slack nur, wenn er sie nutzt.
 7. Exa-API-Key (Websuche der Agenten), falls er Websuche will. Empfehlung: ja.
 8. OpenAI-API-Key für Voice-to-Voice mit GPT-Live.
@@ -25,9 +25,9 @@ Stell dem Nutzer diese Fragen in einer einzigen Nachricht. Kurz, ohne Erklärung
 10. Apple-Developer-Konto (Team-ID, APNs-Key `.p8`, Key-ID) für die iPhone-App mit Push. Ohne Konto läuft das Handy nur über Telegram.
 
 **Maschinen**
-11. Linux-VPS für den Comma-Server: Anbieter, IP, SSH-Zugang. Mindestens 8 vCPU, 16 GB RAM, 200 GB SSD.
-12. Windows-VPS mit echtem Desktop (RDP) für die Computersteuerung des Assistenten: IP, RDP-Zugang. Mindestens 4 vCPU, 16 GB RAM.
-13. Domain für HTTPS (Comma braucht vier Origins unter einer Domain, siehe `02`). DNS-Zugang.
+11. Linux-VPS für den Comma-Server: Empfehlung Hetzner Cloud CPX42 (8 vCPU, 16 GB). IP, SSH-Zugang. Wenn er noch keinen hat: bestellen lassen, Ubuntu 24.04.
+12. Windows-VPS mit echtem Desktop (RDP) für die Computersteuerung des Assistenten: Empfehlung Contabo Cloud VPS 30 mit Windows Server 2022 und Lizenz von Contabo (8 vCPU, 24 GB). IP, Administrator-Passwort. Details in `11_computer.md`.
+13. Domain für HTTPS (Comma braucht vier Origins unter einer Domain, siehe `02`). DNS-Zugang (für Let's-Encrypt-Zertifikate).
 14. Tailscale-Konto (privates Netz zwischen beiden VPS, seinem Rechner und dem Handy).
 
 **Persönliche Fakten**

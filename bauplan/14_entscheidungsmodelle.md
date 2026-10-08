@@ -30,8 +30,7 @@ Alle Adapter liefern dasselbe normalisierte Ergebnis: pro Frage Wahrscheinlichke
 | Adapter | Für | Wie |
 |---|---|---|
 | `typesafe` | Jev direkt (bestehend) | unverändert |
-| `openrouter_decisions` | Jev 1.13, OpenAI Luna Decisions, Clef-flash, Liquid d1 | OpenRouter-Decisions-Endpunkt mit OpenRouter-Key. Format siehe Abschnitt Endpunkte. |
-| `workers_ai` | Clef 27B | Cloudflare Workers AI REST mit Account-ID und Token. Gleiches Anfrageformat wie Jev. |
+| `openrouter_decisions` | Jev 1.13, OpenAI Luna Decisions, Clef (27B), Clef-flash, Liquid d1 | `POST https://openrouter.ai/api/alpha/decisions` mit OpenRouter-Key. Format siehe Abschnitt Endpunkte. |
 | `logprob_llm` | DeepSeek V4.1 Flash (Together), jedes Chat-Completions-Modell mit Logprobs | Prompt listet Optionen mit Ein-Token-Labels (A, B, C, ...; für Noul J und N). Antwort nur das Label, `max_tokens` 1, `logprobs` an, `top_logprobs` 20. Softmax über die Label-Logprobs ergibt die Verteilung. Eine Frage pro Request, mehrere Fragen parallel. |
 
 ### Konfiguration pro Einsatz
@@ -63,7 +62,7 @@ Felder: ID, Einsatz, Zeitpunkt, Sprache der Eingabe (de/en), Eingabe (vollständ
 | `reply_form` (`06`) | Choice über 5 Formen, Noul `reaktion_jetzt` | Jev 1.13 | DeepSeek V4.1 Flash, Clef-flash | Unter 0,5 Top-Wahrscheinlichkeit: Flag `unsicher`. Fehler: kein Flag. |
 | `delegation` (`08`) | Choice `selbst`, `helfer` | Jev 1.13 | DeepSeek V4.1 Flash | Nur Richtung im Flag. Fehler: kein Flag. |
 | `memory_gate` (`05`) | Noul je Kandidat "Braucht der Router diesen Fakt für diese Nachricht?" | Reranker-Schwelle zuerst, Mittelband Jev 1.13 | DeepSeek V4.1 Flash | Über oberer Reranker-Schwelle: rein. Unter unterer: raus. Dazwischen Jev, P ≥ 0,5 rein. Fehler: Mittelband rein (lieber zu viel als zu wenig). |
-| `action_gate` (`10`) | Noul "Löst diese Aktion etwas Unumkehrbares oder Externes aus?" | Feste Regeln zuerst, dann Clef 27B (Workers AI) | Jev 1.13, DeepSeek V4.1 Flash | Regeltreffer: immer Freigabe. Sonst Modell: P ≥ 0,2 Freigabe. Das Modell kann nur hinzufügen, nie wegnehmen. Fehler: Freigabe. |
+| `action_gate` (`10`) | Noul "Löst diese Aktion etwas Unumkehrbares oder Externes aus?" | Feste Regeln zuerst, dann Clef 27B (`cloudflare/clef` über OpenRouter) | Jev 1.13, DeepSeek V4.1 Flash | Regeltreffer: immer Freigabe. Sonst Modell: P ≥ 0,2 Freigabe. Das Modell kann nur hinzufügen, nie wegnehmen. Fehler: Freigabe. |
 | `auditor_trigger` (`05`) | Noul "Lohnt sich ein Audit dieses Turns?" | DeepSeek V4.1 Flash | Jev | Fehler: Audit läuft. |
 | `miniskill` (bestehend) | wie heute | Jev 1.13 | DeepSeek V4.1 Flash | wie heute |
 | `reminder_recheck` (bestehend, `home_mail.ex:667-697`) | wie heute | Jev 1.13 | DeepSeek V4.1 Flash | wie heute |
@@ -113,20 +112,38 @@ Der Nutzer labelt nichts. Labels entstehen aus Verhalten und aus einem nächtlic
 
 ## 5. Endpunkte und Modell-IDs
 
-Die genauen IDs und Formate prüft die umsetzende AI beim Einrichten gegen die Anbieter-Doku und pinnt sie. Bekannte Stände:
-- Jev: `typesafe/jev-1.13` auf OpenRouter seit 2026-09-18, über den Decisions-Endpunkt, nicht Chat Completions. Etwa 0,042 $ pro Million Eingabe-Tokens, Ausgabe frei, 32k Kontext, Median 98 bis 243 ms.
-- Luna: `openai/gpt-6-luna-decisions` auf OpenRouter, 0,10 $ pro Million Eingabe-Tokens, Median etwa 0,21 s, öffentliche Beta seit 2026-10-06.
-- Clef 27B: Cloudflare Workers AI, 0,24 $ pro Million. Clef-flash 9B: Workers AI 0,09 $ und OpenRouter.
-- Liquid d1: `liquid/d1` auf OpenRouter, 0,04 $ pro Million.
-- DeepSeek V4.1 Flash: Together AI, siehe `02` für Modell-ID und Logprobs.
+Stand der Web-Recherche 2026-10-08. Die umsetzende AI prüft jede ID beim Einrichten mit einem echten Call und pinnt die datierte Version, wo es eine gibt.
 
-Ergänzungen aus der Web-Recherche stehen in `02_infrastruktur_und_selfhost.md`, Abschnitt "Anbieter und Modelle".
+### OpenRouter Decisions
+- `POST https://openrouter.ai/api/alpha/decisions` (nicht `/api/v1/alpha/decisions`, das gibt 404). Header `Authorization: Bearer <OpenRouter-Key>`. Diese Modelle funktionieren nicht über `/chat/completions`.
+- Anfrage: `model`, `state` (Text, JSON-Objekt oder Array), `questions` als Objekt `{schlüssel: frage}`. Frage-Typen:
+  - `choice` mit `instructions` und `criteria` als Objekt `{option: beschreibung}` (ein Array liefert eine Platzhalter-Antwort),
+  - `noul` mit `instructions` und `criteria` `{true: ..., false: ...}`,
+  - `score` mit `instructions` und `criteria` als geordnete Liste.
+- Antwort: `answers.{schlüssel}` mit `type`, bei `choice` `choice`, `probabilities`, `confidence`; bei `noul` das Feld `noul` (Wahrscheinlichkeit); bei `score` Wert und Verteilung. Das passt zu `Decide.decode/3` (`decide.ex:328-439`). Der Adapter mappt nur Pfad, Header und die Hülle.
+- Bekannte Schwäche von Jev: Die zuerst genannte Option wird bevorzugt. Der Adapter mischt die Optionsreihenfolge pro Call zufällig und protokolliert sie.
 
----
+| Modell | OpenRouter-ID | Preis Eingabe pro 1M | Kontext |
+|---|---|---|---|
+| Jev 1.13 | `typesafe/jev-1.13` (datiert gesehen: `typesafe/jev-1.13-20260917`) | 0,042 $ | 32k |
+| Luna Decisions | `openai/gpt-6-luna-decisions` | 0,10 $ | nicht dokumentiert |
+| Clef 27B | `cloudflare/clef` | 0,24 $ | 66k |
+| Clef-flash 9B | `cloudflare/clef-flash` | 0,09 $ | 66k |
+| Liquid d1 | `liquid/d1` (datiert: `liquid/d1-20260930`) | 0,04 $ | 32k bis 65k |
+
+Ausgabe-Tokens sind bei allen kostenlos.
+
+### Logprob-Adapter für DeepSeek V4.1 Flash
+- Together AI: Modell-ID `deepseek-ai/DeepSeek-V4.1-Flash`, 0,30 $ Eingabe, 0,006 $ Cache, 1,20 $ Ausgabe pro 1M. OpenAI-kompatibler Chat-Endpunkt `https://api.together.xyz/v1/chat/completions`.
+- Ausweichweg: OpenRouter `deepseek/deepseek-v4.1-flash`.
+- Ob Logprobs für dieses Modell geliefert werden, ist nicht belegt. Im Thinking-Modus wirken Logprobs bei DeepSeek eventuell nicht. Der Adapter schaltet Thinking für Entscheidungs-Calls ab (`thinking: {type: disabled}` bzw. `reasoning.enabled: false`) und prüft beim Start mit einem Testcall, ob `top_logprobs` kommen. Kommen keine, wird DeepSeek als Entscheidungs-Schatten deaktiviert und im Dashboard vermerkt. Für Crew und Auditor ist das egal, die brauchen keine Logprobs.
+
+### Datenschutz
+- Alle Entscheidungs-Calls laufen über den Entscheidungs-Router. Es gibt keinen Nebenpfad mit anderen Regeln (V72). Fremdtext wird als solcher markiert. Der Voice-Profil-Pfad (`router_decision.ex`) wird ebenfalls über den Router geführt.
 
 ## 6. Abnahme
 
 - Alle zehn Einsätze laufen über den Router, protokolliert, mit mindestens einem Schatten.
-- `selfhost/configure.py` fragt OpenRouter-, Together- und Cloudflare-Zugang ab und schreibt sie in die Config.
+- `selfhost/configure.py` übernimmt OpenRouter-, Together- und DeepInfra-Keys aus `.env` und schreibt sie in die Config.
 - Kalibrierungs- und Wechsel-Job laufen als Oban-Cron, mit Ergebnis im Dashboard.
 - Tests: Adapter gegen aufgezeichnete Anbieter-Antworten, Normalisierung der Wahrscheinlichkeiten, Bänder, Ausfallverhalten (Timeout, 5xx, kaputtes JSON), harte Weck-Regeln, "Modell nimmt nie eine Freigabe weg".

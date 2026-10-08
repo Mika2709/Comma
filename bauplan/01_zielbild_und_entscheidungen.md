@@ -78,7 +78,7 @@ Kennungen `E..` verweisen auf die Entscheidungsliste aus dem Gespräch. Jede Ent
 - Primär: Weck-Gate Jev 1.13; Antwortform und Delegation Jev 1.13; Gedächtnis-Mittelband Jev 1.13 nach Reranker-Schwelle; Aktions-Gate feste Regeln, dann Clef 27B.
 - Schattenkandidaten: DeepSeek V4.1 Flash mit Logprobs (E64), OpenAI Luna Decisions, Clef-flash, Liquid d1.
 - Abweichung von der früheren Empfehlung "Strands Decider 2B lokal": Der VPS hat keine GPU, auf der CPU ist das Modell für den Weg vor jeder Antwort zu langsam. Deshalb Jev primär. Strands läuft nur, wenn eine GPU dazukommt.
-- Abweichung "Clef 27B selbst gehostet": läuft über Cloudflare Workers AI mit fester Modellversion. Selbst hosten bräuchte eine GPU mit über 50 GB.
+- Abweichung "Clef 27B selbst gehostet": läuft über OpenRouter (`cloudflare/clef`, 66k Kontext) mit fest gepinnter, datierter Modellversion. Selbst hosten bräuchte eine GPU mit über 50 GB. Workers AI scheidet aus, weil es langen Text-State auf etwa 2k Tokens kürzt.
 - Modellversionen werden fest gepinnt, nie `latest`.
 - Beim Aktions-Gate darf ein Modell eine Rückfrage hinzufügen, nie eine wegnehmen.
 
