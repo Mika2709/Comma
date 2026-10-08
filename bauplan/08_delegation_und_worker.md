@@ -72,6 +72,10 @@ Pfad-Abkürzungen: `sa/` = `systems/apps/`, `cl/` = `clients/`, `cn/` = `systems
 - `task_completion.ex:6-31`: Router-Selbstabschluss für alle eigenen Tasks erlauben, nicht nur einfache Einmal-Tasks. Schedule-, Triage- und Workflow-Tasks behalten ihre eigenen Regeln.
 - Die bestehende Annahme-Route bleibt für die seltenen `ready_for_review`-Fälle.
 
+### Durcharbeiten statt Zwischenfragen (E54)
+- Regel im Router- und Worker-Prompt: "Arbeite so weit wie möglich, bis eine Freigabe nötig ist oder die Aufgabe fertig ist. Frage nur bei echten Blockern (fehlende Information, die du nicht finden oder sinnvoll annehmen kannst). Triff vernünftige Annahmen und nenne sie kurz im Ergebnis."
+- Worker fragen nie den Nutzer, sondern den Router. Der Router beantwortet aus Gedächtnis und Kontext oder sammelt mehrere Fragen zu einer einzigen Rückfrage (mit Picker, `09`).
+
 ### Helfer melden an den Router, nicht an den Nutzer
 - Bleibt wie heute: Worker-Berichte kommen als Task-Nachrichten zum Router (`tool_policy.ex:58`).
 - Worker bekommen Gedächtnis zum Start und Lese-Tools (`05` Abschnitt 3).

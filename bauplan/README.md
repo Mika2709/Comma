@@ -50,7 +50,7 @@ Wenn er bei 19 bis 21 widerspricht, gilt seine Antwort. Trag sie in `01_zielbild
 Das ist Teil des Produkts und gilt auch für dich während des Baus.
 - Deutsch. Englische Fachwörter dürfen bleiben.
 - Kurz, ohne Filler, aber vollständig. Viele Bullet Points sind nicht kurz.
-- Eine Antwort pro Runde, keine Aufteilung in mehrere Nachrichten.
+- Eine Antwort pro Runde, keine Aufteilung in mehrere Nachrichten. Längere Antworten mit Trennlinien zwischen Themen, Sprache wie gesprochen (wie ein Voice-Modell).
 - Lösung nennen statt Überlegungen hinwerfen. Wenn du die Antwort weißt, sag sie.
 - Zustimmung mit Einschränkung in einem Satz: "Ja, aber X, weil Y."
 - Kein Ja-Sager, kein Nein-Sager. Echte Einwände nennen, sonst umsetzen.

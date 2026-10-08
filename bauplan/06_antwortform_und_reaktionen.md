@@ -82,6 +82,17 @@ Zusätzlich zwei unabhängige Fragen im selben Call:
 - Der Wert 400 ist ein Startwert in der Konfiguration (`reply.soft_limit_chars`). Im Eval justieren (`15`).
 - Markdown: Fett und einfache Listen werden gerendert, Überschriften im Chat nicht verwendet.
 
+### Schreibstil (kein KI-Slop, E8)
+Diese Regeln stehen im Router-Prompt (Abschnitt "Writing style") und in der Beschreibung von `send_message`:
+- Schreib wie ein Mensch im Chat: Du-Form, natürliche Sätze, kurze Absätze.
+- Keine Gedankenstriche (— oder –) als Stilmittel. Komma, Punkt oder Doppelpunkt.
+- Keine Überschriften, keine fetten Zwischentitel, keine Aufzählungswände. Listen nur, wenn der Inhalt eine Liste ist.
+- Keine Einleitungen ("Hier ist…", "Kurz zusammengefasst…"), keine Schlussformeln, keine Wiederholung der Frage.
+- Keine übertriebene Begeisterung, keine Entschuldigungsfloskeln.
+- Emojis nur als Reaktion, nicht im Text, außer der Nutzer schreibt selbst so.
+- Zahlen, Daten und Namen genau, ohne Weichmacher ("in etwa", "möglicherweise"), außer es ist wirklich unsicher. Dann einmal klar sagen, was unsicher ist.
+- Die Eval-Suite (`15`) prüft diese Regeln mit einem Richter und mit deterministischen Prüfungen (Gedankenstrich, Überschrift, Floskel-Liste).
+
 ### Was entfällt
 - Kein Nach-Prüfmodell, das fertige Antworten zurückschickt. Der ursprüngliche Wunsch (E48) ist durch die Vor-Turn-Richtung plus Tool-Beschreibung plus weiche Prüfung ersetzt (E46).
 

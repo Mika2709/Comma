@@ -76,6 +76,10 @@ Ergänzungen in `cl/apps/apple` (SwiftUI), jeweils nativ:
 
 ---
 
+## 3b. Notlösung ohne Apple-Konto
+
+Ohne Apple-Developer-Konto: den bestehenden Web-Client in Safari öffnen und "Zum Home-Bildschirm" hinzufügen (E80). Chat, Board und Freigaben funktionieren dort. Push kommt dann nur über Telegram. Widgets brauchen die Web-Freigabe aus `09` Abschnitt 3.
+
 ## 4. Telegram als Ausweichweg
 
 - `selfhost/configure.py` übernimmt `COMMA_TELEGRAM_*` aus `.env` und schreibt `comma.telegram`.
