@@ -91,6 +91,7 @@ Kennungen `E..` verweisen auf die Entscheidungsliste aus dem Gespräch. Jede Ent
 - Todo-Board rechts ersetzt die Task-Ansicht. Eine Liste, keine Stufen-Tabs (E68).
 - Die Haupt-AI kennt das Board im Kontext und pflegt es über ein unsichtbares Tool (E69).
 - Die Vorschläge der linken Leiste wandern als markierte Vorschläge aufs Board. Die linke Leiste entfällt. Einstellungen für die Quellen bleiben erreichbar.
+- Persönliche Todos sind lokale CalendarItems vom Typ `Task` (bestehende Entität, JSCalendar-Aufgabe). Das Board ist eine Projektion über Todos, laufende Tasks und Vorschläge.
 - Datum- und Uhrzeit-Picker im Chat (E72).
 - Eigene UI im Chat bleibt (E73). Wiederverwendbare Vorlagen mit festem Datenformat (E74).
 - Weitere Panels wie bei Hark: das Board ist das erste Panel. Weitere anheftbare Panels bauen auf demselben Zustandsmodell auf (E70).
@@ -100,7 +101,8 @@ Kennungen `E..` verweisen auf die Entscheidungsliste aus dem Gespräch. Jede Ent
 - Eigener Rechner in der Cloud: Windows-VPS mit echtem Desktop. Kein Linux-Desktop (E79).
 - Dauerhafte Logins, kein Wegwerf-Browser (E77).
 - Mehrere Steuermethoden: Koordinaten als Hauptweg, Bedienelemente-Baum (UI Automation, Accessibility, DOM) zum Lesen und Prüfen, APIs wo vorhanden (E78).
-- Zugriff auf den eigenen Rechner des Nutzers über den Comma-Connector.
+- Desktop-Steuerung über Windows-MCP (fertiger Server mit Koordinaten-Klicks und UI-Automation-Baum), Browser über CDP direkt aus Comma mit Accessibility-Baum (`11`).
+- Zugriff auf den eigenen Rechner des Nutzers: macOS über den Comma-Connector, Windows über Windows-MCP.
 
 ### Sprache und Zeit (`12`)
 - Software komplett auf Deutsch. Code-Namen englisch. Englische Wörter des Nutzers und übliche englische Begriffe bleiben englisch (E82).
@@ -136,3 +138,8 @@ Kennungen `E..` verweisen auf die Entscheidungsliste aus dem Gespräch. Jede Ent
 6. Gmail bleibt über Composio angebunden, aber ohne den Filter `is:important`. Das Weck-Gate entscheidet.
 7. Interne System-Prompts bleiben Englisch (bessere Befolgung, einfacher Upstream-Merge). Alles, was der Nutzer sieht, ist Deutsch.
 8. Die linke Vorschlagsleiste geht im Board auf.
+9. Clef 27B über OpenRouter statt selbst gehostet; Embeddings und Reranker über DeepInfra.
+10. Desktop-Steuerung über Windows-MCP statt eigenem Windows-Port des Go-Connectors.
+11. Zustellung aufs Handy macht der Server (Push, sonst Telegram), nicht mehr der Router.
+12. Die iPhone-App wird in GitHub Actions gebaut und über TestFlight installiert, damit kein Mac nötig ist.
+13. Reaktionen sind `app_event`-Annotationen an Nachrichten, weil Nachrichten append-only sind.
