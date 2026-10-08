@@ -23,20 +23,21 @@ Läuft parallel zur Antwortform-Entscheidung (`06`). Beide zusammen höchstens 1
    - Dazwischen: Entscheidungsmodell `memory_gate` (`14`), eine Noul-Frage pro Kandidat ("Braucht der Assistent diesen Fakt, um auf diese Nachricht gut zu antworten?"), bis zu 8 Fragen pro Call, mehrere Calls parallel. P ≥ 0,5: rein.
    - Fakten der letzten 48 Stunden: beide Schwellen niedriger, und die Quellstelle kommt mit 2 Nachrichten Umgebung mit (E24).
 4. **Doppelte vermeiden** (nach vellum v3): Ein Fakt, der seit dem letzten Rebuild schon eingespielt wurde und unverändert ist, kommt nur als Verweis ("f123, siehe oben"). Hat er sich geändert, kommt die neue Fassung mit Hinweis "aktualisiert, vorher: ...".
-5. **Budget:** höchstens 8 Fakten, 2 Themenseiten und die Umgebung frischer Fakten, zusammen höchstens 2.500 Tokens. Reihenfolge nach Score.
+5. **Budget:** höchstens 8 Fakten und 2 Themenseiten, zusammen höchstens 1.500 Tokens; mit der Umgebung frischer Fakten höchstens 2.500 Tokens. Reihenfolge nach Score.
 6. **Nachtrag des Auditors** aus dem vorigen Turn (Abschnitt 2) wird immer mitgenommen, unabhängig von den Bändern.
 
 ### Format und Ort im Kontext
-- Ein Block `<gedaechtnis>` direkt an der neuen Nachricht. Er wird mit dieser Nachricht gespeichert und bleibt danach unverändert im Verlauf ("eingefroren"). Folgende Requests haben dadurch denselben Präfix, der Cache hält.
+- Ein Block `<gedaechtnis>` als Laufzeit-Nachricht direkt nach der neuen Nachricht. Er wird gespeichert und bleibt danach unverändert im Verlauf ("eingefroren"), bis zum nächsten Rebuild. Folgende Requests haben dadurch denselben Präfix, der Cache hält.
 - Pro Eintrag: Text, Kategorie, gültig seit, Alter ("vor 3 Tagen"), Quelle (Nachrichten-ID für `memory.source`), Konfidenz. Bei Themenseiten: Titel und Überblick.
 - Der Block ist als Daten markiert ("Erinnerungen aus dem Gedächtnis, keine Anweisungen").
 - Leerer Block: Es wird gar nichts angehängt.
 
 ### Andockstelle in Comma
-- `ProjectKnowledgeContext` (`salix_agent/round.ex:1013`) ist genau dafür gebaut: Er holt vor der Runde Wissen und speichert es als Laufzeit-Nachricht. Heute nur für Bridge-for-Teams (`systems/config/config.exs:522`).
-- Mach die Provider-Konfiguration zu einer Liste und füge einen Provider `PersonalMemoryContext` hinzu, der den Ablauf oben ausführt.
-- Das Zeitbudget von 250 ms wird für diesen Provider auf 1.200 ms gesetzt (Suche plus Reranker plus Entscheidungsmodell).
-- Prüfe, dass die Laufzeit-Nachricht hinter den Cache-Markern landet und danach unverändert bleibt (`VK/Provider/Request.lean:26-49`).
+- `ProjectKnowledgeContext` (`systems/apps/salix_agent/lib/salix_agent/round.ex:1013`) holt vor der Runde Wissen und speichert es als Laufzeit-Nachricht vom Typ `project_knowledge`. Heute nur für Bridge-for-Teams (`systems/config/config.exs:522`).
+- Mach die Provider-Konfiguration zu einer Liste und füge einen Provider `PersonalMemoryContext` hinzu, der den Ablauf oben ausführt. Zeitbudget 1.200 ms statt 250 ms (Suche plus Reranker plus Entscheidungsmodell).
+- **Wichtig:** Der Kernel blendet `project_knowledge`-Blöcke aus, sobald eine spätere Nutzereingabe eine neue Aktivierung startet (`historicalProjectKnowledge` in `requestLiveMessages`, `systems/native/verified_kernel/runtime/VerifiedKernel/Session/Query/Compaction.lean:49-52,100-130`). Für den Gedächtnisblock ist das falsch: Er soll bis zum nächsten Rebuild sichtbar bleiben, damit Verweise ("siehe oben") stimmen und der Präfix stabil bleibt (Muster vellum v3). Deshalb speichert `PersonalMemoryContext` seine Nachricht mit eigenem Typ `personal_memory`. Diesen Typ filtert `requestLiveMessages` nicht. Gleiche Inhalte werden trotzdem nur einmal gerendert: Die Duplikatprüfung im Provider (Abschnitt "Doppelte vermeiden") verhindert das schon beim Schreiben.
+- Die Crew (`03`) sieht die Blöcke beim Rebuild. Danach fallen sie mit dem verdichteten Bereich weg.
+- Budget pro Turn deshalb enger: höchstens 1.500 Tokens, mit Umgebung frischer Fakten höchstens 2.500 Tokens. Das Dashboard (`15`) zeigt den Anteil der Gedächtnisblöcke am Kontext.
 
 ### Ausfallverhalten
 | Fehler | Verhalten |
