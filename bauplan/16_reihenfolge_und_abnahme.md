@@ -10,7 +10,7 @@ Der Code für fast jeden Punkt ist mit AI eine Sache von Minuten bis Stunden. Ze
 
 1. **Zuerst fragen** (`README.md`). Alle Zugänge einsammeln.
 2. **Selbsthost reparieren und auf dem Linux-VPS starten** (`02`): Build-Fixes, Connector-Artefakte, Browser-Secret, `decide`- und `apns`-Keys in `configure.py`, Tailscale, Domain, HTTPS.
-3. **Windows-VPS anbinden** (`11`, nur der Connector-Teil): `salix-connect` für Windows bauen, als Dienst starten, Gerät in der Group freigeben. Desktop-Steuerung kommt in Phase 1.
+3. **Windows-VPS einrichten** (`11` Abschnitt 2): Tailscale, Autologon, Chrome mit eigenem Profil und Debug-Port, Windows-MCP, RDP-Trennung. Der Nutzer meldet sich einmal per RDP in seinen Diensten an.
 4. **Hauptmodell einrichten**, Kontextfenster und Cache-TTL im Modell-Template setzen (`03`).
 5. Rauchtest: Nachricht in Home, Antwort kommt; ein Helfer läuft; Gmail-Trigger kommt an.
 
@@ -29,7 +29,7 @@ Diese Pakete sind unabhängig und laufen parallel in getrennten Worktrees.
 | P3 Proaktivitäts-Fixes | `07` | V39, V50, Budgets raus, Filter, Monitoring immer an | Phase 0 |
 | P4 Sprache und Zeit | `12` | `de`-Locale überall, Zeit pro Turn, Zeitzone | Phase 0 |
 | P5 Aktions-Gate | `10` | Gate an zentraler Stelle, Regeln, Belege, Klickprüfung Browser | Phase 0 (Modellteil braucht P1, Regeln nicht) |
-| P6 Windows-Desktop | `11` | Desktop-Steuerung Windows, Browser per CDP auf dem Windows-VPS, Leases | Phase 0 |
+| P6 Computer | `11` | `LocalCDP`-Provider mit AX-Baum, Windows-MCP als MCP-Server, URL-Policy, Effektklassen, Leases | Phase 0 |
 | P7 Unsichtbare Helfer | `08` | Task-Karten weg, Abnahme aus, Stillstandserkennung (V25), Abbrechen | Phase 0 |
 
 ---
@@ -55,7 +55,7 @@ P8 ändert den Lean-Kern. Plane dafür einen eigenen PR, der nur Kernel-Änderun
 |---|---|---|
 | P14 iPhone | `13` | Push für Chat und Meldungen, Board, Reaktionen, Picker nativ, `app_active` |
 | P15 Voice | `13` | Voice-to-Voice in Electron und iPhone über die vorhandene Sprach-Schnittstelle |
-| P16 Eigener Rechner | `11` | Lokale Steuerung des Nutzerrechners (macOS: Accessibility-Modus freischalten; Windows: gleicher Dienst wie VPS) |
+| P16 Eigener Rechner | `11` | Lokale Steuerung des Nutzerrechners (macOS: `salix-connect` plus Accessibility-Modus; Windows: Windows-MCP wie auf dem VPS) |
 
 ---
 
