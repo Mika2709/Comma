@@ -59,8 +59,8 @@ Felder: ID, Einsatz, Zeitpunkt, Sprache der Eingabe (de/en), Eingabe (vollständ
 | Einsatz | Frage | Primär | Schatten | Bänder und Ausfallverhalten |
 |---|---|---|---|---|
 | `wake` (Weck-Gate, `07`) | Choice: `still`, `hintergrund`, `melden` | Jev 1.13 | DeepSeek V4.1 Flash (Logprobs), Luna Decisions, Liquid d1 | `still` nur bei kalibriert P(still) ≥ 0,9, sonst mindestens `hintergrund`. Fehler: `hintergrund` (Router entscheidet). Harte Weck-Regeln übersteuern (siehe unten). |
-| `reply_form` (`06`) | Choice über 5 Formen, Noul `reaktion_jetzt` | Jev 1.13 | DeepSeek V4.1 Flash, Clef-flash | Unter 0,5 Top-Wahrscheinlichkeit: Flag `unsicher`. Fehler: kein Flag. |
-| `delegation` (`08`) | Choice `selbst`, `helfer` | Jev 1.13 | DeepSeek V4.1 Flash | Nur Richtung im Flag. Fehler: kein Flag. |
+| `reply_form` (`06`) | Choice über 5 Formen, Noul `reaktion_jetzt` | Jev 1.13 | DeepSeek V4.1 Flash, Clef-flash | Unter 0,5 Top-Wahrscheinlichkeit: Vermerk `unsicher` in der Antwort-Richtung. Fehler: keine Antwort-Richtung. |
+| `delegation` (`08`) | Choice `selbst`, `helfer` | Jev 1.13 | DeepSeek V4.1 Flash | Nur als Richtung in der Antwort-Richtung. Fehler: keine Angabe. |
 | `memory_gate` (`05`) | Noul je Kandidat "Braucht der Router diesen Fakt für diese Nachricht?" | Reranker-Schwelle zuerst, Mittelband Jev 1.13 | DeepSeek V4.1 Flash | Über oberer Reranker-Schwelle: rein. Unter unterer: raus. Dazwischen Jev, P ≥ 0,5 rein. Fehler: Mittelband rein (lieber zu viel als zu wenig). |
 | `action_gate` (`10`) | Noul "Löst diese Aktion etwas Unumkehrbares oder Externes aus?" | Feste Regeln zuerst, dann Clef 27B (`cloudflare/clef` über OpenRouter) | Jev 1.13, DeepSeek V4.1 Flash | Regeltreffer: immer Freigabe. Sonst Modell: P ≥ 0,2 Freigabe. Das Modell kann nur hinzufügen, nie wegnehmen. Fehler: Freigabe. |
 | `auditor_trigger` (`05`) | Noul "Lohnt sich ein Audit dieses Turns?" | DeepSeek V4.1 Flash | Jev | Fehler: Audit läuft. |

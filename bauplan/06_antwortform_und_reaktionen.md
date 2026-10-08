@@ -45,8 +45,8 @@ Zusätzlich zwei unabhängige Fragen im selben Call:
   - die letzten 6 Nachrichten (Nutzer und Assistent) in Kurzform,
   - Zustand: läuft ein Helfer zu diesem Thema, wartet eine Freigabe, ist die Nachricht eine Antwort auf eine Frage des Assistenten,
   - das gelernte Kommunikationsprofil des Nutzers (kurze Liste aus dem Gedächtnis, Kategorie `kommunikation`, siehe `04`).
-- Läuft parallel zum Gedächtnisabruf des Hidden Helpers (`05`). Beide zusammen dürfen höchstens 1,5 s vor dem Turn kosten. Timeout 1,5 s, danach ohne Flag weiter.
-- Bei Fehler oder Timeout: kein Flag, der Router entscheidet allein nach den Regeln im Prompt. Nie blockieren.
+- Läuft parallel zum Gedächtnisabruf des Hidden Helpers (`05`). Beide zusammen dürfen höchstens 1,5 s vor dem Turn kosten. Timeout 1,5 s, danach ohne Antwort-Richtung weiter.
+- Bei Fehler oder Timeout: keine Antwort-Richtung, der Router entscheidet allein nach den Regeln im Prompt. Nie blockieren.
 - Bei Ereignis-Turns (Mail, Erinnerung, Helfer-Ergebnis) läuft dieselbe Entscheidung mit dem Ereignis als Eingabe. Dort ist `still` häufig.
 
 ### Übergabe an den Router
@@ -128,7 +128,7 @@ Diese Regeln stehen im Router-Prompt (Abschnitt "Writing style") und in der Besc
 | ✉️ | Mail oder Nachricht im Namen des Nutzers verschickt (nach Freigabe). |
 
 Freie Wahl darüber hinaus ist erlaubt, wenn sie besser passt (🎉 bei guten Nachrichten, 🙏, 😬). Regeln in der Beschreibung:
-- Nicht auf jede Nachricht reagieren. Das Flag `reaktion_jetzt` gibt die Richtung.
+- Nicht auf jede Nachricht reagieren. Der Wert `reaktion_jetzt` in der Antwort-Richtung gibt die Richtung.
 - Nicht reagieren und dasselbe zusätzlich in Text sagen.
 - Eine Reaktion ist eine vollständige Antwort.
 
