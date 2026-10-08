@@ -75,6 +75,9 @@ Vollständige Änderungsliste:
 **Tests**
 11. `sa/salix_im/test/mail_interaction_test.exs` (Tests ab `:47`, `:64`, `:119`), `sa/comma_web/test/local_recommendation_flow_test.exs` (`:1314-1381`), `sa/comma_web/test/proactive_mail_test.exs:2345-2355`, `sa/comma_web/test/proactive_notebook_test.exs:131-148`: Budget-Erwartungen entfernen, neue Erwartung "beliebig viele kritische Meldungen am Tag werden zugestellt".
 
+**Tracking-Kapazität (V45)**
+12. `mail_interaction.ex:4` (`@limit 128`) und `:192`: Neues Tracking scheitert heute bei 128 Quellen pro Owner, nichts wird verdrängt (`docs/architecture/DOMAIN_CONCEPTS.md:1356`). Ohne Budgets kommen mehr Vorgänge an. Neu: Vorgänge im Zustand `handled`, deren letzte Änderung älter als 14 Tage ist, werden beim Anlegen eines neuen Eintrags entfernt (älteste zuerst). Offene, gesnoozte und Vorgänge mit Task bleiben immer. Die Grenze 128 bleibt als Größenschutz für den Home-Wert (256 KB). Inventar-Zeile `:1356` entsprechend anpassen.
+
 **Bleibt bewusst**
 - Das Loop-Budget `agent.notify` (6 Weckungen pro 10 Minuten für agentengeschriebene Loops, `sa/salix_agent/lib/salix_agent/loops.ex:13,46-60`) ist ein Schutz gegen fehlerhafte Loops, kein Meldebudget. Es bleibt.
 - Alle Dedupe-Mechanismen bleiben. Das ist der Schleifenschutz: Dasselbe Ereignis wird nie zweimal gemeldet, verschiedene Ereignisse immer.
