@@ -19,7 +19,7 @@ Pfad-Abkürzungen: `sa/` = `systems/apps/`, `cl/` = `clients/`, `VK/` = `systems
 - Vorlage: Slack-Triage wählt schon `reply|reaction|silence` mit Emoji-Allowlist und 4000-Zeichen-Grenze (`triage/participation_decision.ex:18`, `triage/product_decision.ex:29,37`).
 - Länge wird nur per Prompt gesteuert: `opening`-Regel, `resources/salix-system-files/skills/proactive/SKILL.md` ("Write the message": 1 bis 2 Sätze plus Frage), Aufmerksamkeitsnachricht bis 600 Zeichen (`comma_web/recommendation_renderer.ex:168-186`), Voice-`reply_length` per Jev (`docs/messaging-voice.md:191`).
 - Einziger Engpass aller Sendungen: `ImRouter.call_dynamic_operation` (`systems/apps/salix_agent/lib/salix_agent/tools/im_router.ex:452`). Ein fehlgeschlagener Send lässt den Turn offen (`docs/tools-integrations.md:159`), das Modell kann also neu formulieren.
-- Vorbild für eine Entscheidung vor dem Turn: `MiniskillSelector` (`internal_session_actor.ex:2343`), Ergebnis als `turn:`-Flag in `TurnReminders.lean`.
+- Vorbild für eine Entscheidung vor dem Turn: `MiniskillSelector` (`internal_session_actor.ex:2343`).
 
 ---
 
@@ -50,17 +50,17 @@ Zusätzlich zwei unabhängige Fragen im selben Call:
 - Bei Ereignis-Turns (Mail, Erinnerung, Helfer-Ergebnis) läuft dieselbe Entscheidung mit dem Ereignis als Eingabe. Dort ist `still` häufig.
 
 ### Übergabe an den Router
-- Das Ergebnis wird als `turn:`-Zeile im abschließenden Reminder übergeben. Dieser Teil liegt hinter den Cache-Markern (`VK/Provider/Request.lean:26-49`), bricht also den Cache nicht.
-- Format (Beispiel): `turn: form=kurz (0.71, sonst ein_satz 0.22); reaktion_jetzt=ja (0.83); delegation=selbst (0.64)`.
+- Das Ergebnis kommt als kurze Laufzeit-Nachricht "Antwort-Richtung" in das Aktivierungs-Delta (`sa/salix_agent/lib/salix_agent/context_providers.ex:34-81`, Aufruf pro Runde in `sa/salix_agent/lib/salix_agent/round.ex:1011-1016`). Das Delta wird hinter den Kontext gehängt und bricht den Cache nicht. Nur die erste Runde eines Turns bekommt es.
+- Format (Beispiel): `Antwort-Richtung: form=kurz (0.71, sonst ein_satz 0.22); reaktion_jetzt=ja (0.83); delegation=selbst (0.64)`.
 - Ist die Top-Option unter 0,5, steht `unsicher` davor. Dann entscheidet der Router selbst zwischen den beiden besten Optionen.
-- Der Router darf abweichen, wenn der Inhalt es verlangt. Die Regel im Prompt: "Die Form ist eine Richtung, keine Grenze. Weiche ab, wenn sonst Wichtiges fehlt oder du etwas Unnötiges sagen würdest."
+- Der Router darf abweichen, wenn der Inhalt es verlangt. Regel im Prompt: "Die Form ist eine Richtung, keine Grenze. Weiche ab, wenn sonst Wichtiges fehlt oder du etwas Unnötiges sagen würdest."
+- Vorteil gegenüber einem neuen `turn:`-Flag im Kernel: kein neues Session-Event, keine Änderung an den Reducer-Beweisen. Die Richtung bleibt im Verlauf sichtbar und dient später als Label-Quelle (`14`).
 
 ### Änderungen im Kern
-- Vor-Turn-Entscheidung: neuer `TurnFormSelector` nach dem Muster `MiniskillSelector`. Dieser startet in `resolve_round_config/3` (`sa/salix_agent/lib/salix_agent/internal_session_actor.ex:2331-2374`) als `DependencyJob` mit 1 s Frist parallel zum Round-Config-Build, `finish` joint, das Ergebnis wird vor der Runde als Event in die Revision geschrieben (wie `miniskills_selected`, `:2376-2385`; Reducer `VK/Session/Kernel.lean:27`). Für die Antwortform ein neues Event `turn_form_selected` mit Reducer, Write-Validation und Aufnahme in die Reducer-Listen der Beweise (`systems/native/verified_kernel/proofs/VerifiedKernelProofs/Session/AppendOnly/Core.lean:286-287`, `WorkNonRetiring.lean`), damit die Theoreme weiter gelten.
-- `turn:`-Flags baut `Request.turnMarker` (`VK/Session/Request.lean:151-164`). Neue Flags `form=…`, `reaktion_jetzt=…`, `delegation=…` mit Wahrscheinlichkeiten. Das Flag `opening=on` (`:142-149`) entfällt.
-- `VK/Session/TurnReminders.lean`: Text `opening` (`:16`) streichen. Im statischen Katalog `## Turn reminders` (`:22-28`) die Regeln für die neuen Flags ergänzen: "Die Form ist eine Richtung, keine Grenze. Weiche ab, wenn sonst Wichtiges fehlt oder du Unnötiges sagen würdest. Eine Reaktion ist eine vollständige Antwort. Schweigen ist erlaubt." Ohne Flag: "Antworte in der kleinsten Form, die alles Wichtige enthält."
-- Eine Katalogänderung ändert den Prompt-Snapshot und baut den Cache einmal pro Session neu auf (`VK/Session/Query/Reply.lean:398-405`). Das ist einmalig und unkritisch.
-- Kernel-Tests: `systems/native/verified_kernel/test/` (Request-Bau, Flags), `systems/apps/salix_agent/test/miniskill_selector_test.exs` als Vorlage für `turn_form_selector_test.exs`. `systems/native/verified_kernel/scripts/check.sh` muss grün sein.
+- Vor-Turn-Entscheidung: neuer `TurnFormSelector` nach dem Muster `MiniskillSelector`. Start in `resolve_round_config/3` (`sa/salix_agent/lib/salix_agent/internal_session_actor.ex:2331-2374`) als `DependencyJob` mit 1,5 s Frist parallel zum Round-Config-Build, `finish` joint (wie `MiniskillSelector.start/finish`, `sa/salix_agent/lib/salix_agent/miniskill_selector.ex:8-107`). Das Ergebnis hält der Actor für diese Aktivierung, der neue Context-Provider liest es und schreibt die "Antwort-Richtung" ins Delta.
+- `opening` entfernen: Flag `opening=on` in `Request.turnMarker` (`VK/Session/Request.lean:142-164`) und Text `opening` in `VK/Session/TurnReminders.lean:16` streichen. Im statischen Katalog `## Turn reminders` (`:22-28`) die Regel ergänzen: "Antworte in der kleinsten Form, die alles Wichtige enthält. Eine Reaktion ist eine vollständige Antwort. Schweigen ist erlaubt. Folge der Antwort-Richtung, wenn eine da ist." Kein neues Event, kein Reducer.
+- Eine Katalogänderung ändert den Prompt-Snapshot und baut den Cache einmal pro Session neu auf (`VK/Session/Query/Reply.lean:398-405`). Einmalig und unkritisch.
+- Tests: `systems/native/verified_kernel/test/` (Request-Bau ohne `opening`), `systems/apps/salix_agent/test/miniskill_selector_test.exs` als Vorlage für `turn_form_selector_test.exs`. `systems/native/verified_kernel/scripts/check.sh` muss grün sein.
 - `resources/salix-system-files/skills/proactive/SKILL.md`: Abschnitt "Write the message" auf dieselben Formen umstellen. Die Pflicht zur abschließenden Frage streichen (Report V19). Reine Information endet ohne Frage.
 
 ---

@@ -47,7 +47,7 @@ Pfad-Abkürzungen: `sa/` = `systems/apps/`, `cl/` = `clients/`, `cn/` = `systems
 
 ## 1. Weiche Delegation
 
-- Die harte Regel (`tool_policy.ex:175,179-187`) wird ersetzt durch: "Arbeite selbst, wenn die Anfrage mit wenigen Schritten erledigt ist und dein Kontext dabei nicht stark wächst. Gib ab, wenn die Arbeit viele Schritte, lange Recherche, große Tool-Ausgaben, Warten oder parallele Teile hat. Das `turn:`-Flag `delegation` ist eine Richtung." Reviews dürfen beim Router bleiben, wenn alles Material sichtbar ist.
+- Die harte Regel (`tool_policy.ex:175,179-187`) wird ersetzt durch: "Arbeite selbst, wenn die Anfrage mit wenigen Schritten erledigt ist und dein Kontext dabei nicht stark wächst. Gib ab, wenn die Arbeit viele Schritte, lange Recherche, große Tool-Ausgaben, Warten oder parallele Teile hat. Der Wert `delegation` in der Antwort-Richtung ist eine Richtung." Reviews dürfen beim Router bleiben, wenn alles Material sichtbar ist.
 - Das Entscheidungsmodell `delegation` (`14`) läuft im selben Vor-Turn-Call wie die Antwortform (`06`). Eingabe zusätzlich: aktuelle Kontextgröße des Routers und Abstand zur Rebuild-Schwelle. Je größer der Kontext, desto eher `helfer`. Grund (E61): Mehr Arbeit im Hauptkontext heißt schnelleres Wachstum, mehr Rebuilds, schlechtere Qualität.
 - Labels für die Kalibrierung: siehe `14` Abschnitt 3.
 
