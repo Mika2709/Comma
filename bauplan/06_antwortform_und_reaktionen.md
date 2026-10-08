@@ -7,6 +7,8 @@ Grundsatz aus dem Gespräch: Ein hartes Limit macht es schlimmer (Filler bleibt,
 2. Ein Sende-Tool, dessen Beschreibung bei jedem Aufruf einen zweiten Gedanken erzwingt.
 3. Reaktionen als echte Antwortform.
 
+Pfad-Abkürzungen: `sa/` = `systems/apps/`, `cl/` = `clients/`, `VK/` = `systems/native/verified_kernel/runtime/VerifiedKernel/`.
+
 ---
 
 ## Ist-Zustand (Stand `ba4f55d`)
@@ -54,9 +56,11 @@ Zusätzlich zwei unabhängige Fragen im selben Call:
 - Der Router darf abweichen, wenn der Inhalt es verlangt. Die Regel im Prompt: "Die Form ist eine Richtung, keine Grenze. Weiche ab, wenn sonst Wichtiges fehlt oder du etwas Unnötiges sagen würdest."
 
 ### Änderungen im Kern
-- `TurnReminders.lean`: `opening`-Regel entfernen. Ersetzen durch eine Regel, die auf das `turn:`-Flag verweist und ohne Flag gilt: "Antworte in der kleinsten Form, die alles Wichtige enthält. Eine Reaktion ist eine vollständige Antwort. Schweigen ist erlaubt."
-- Die neue Vor-Turn-Entscheidung hängt sich an dieselbe Stelle wie `MiniskillSelector` (`internal_session_actor.ex:2343`). Baue einen `TurnFormSelector` im gleichen Stil: läuft vor der Aktivierung, schreibt sein Ergebnis in die Aktivierung, die Lean beim Bau des Reminders liest.
-- Lean-Beweise neu bauen. Wenn ein Beweis die `opening`-Regel referenziert, passe ihn an (siehe `03`, Abschnitt Lean).
+- Vor-Turn-Entscheidung: neuer `TurnFormSelector` nach dem Muster `MiniskillSelector`. Dieser startet in `resolve_round_config/3` (`sa/salix_agent/lib/salix_agent/internal_session_actor.ex:2331-2374`) als `DependencyJob` mit 1 s Frist parallel zum Round-Config-Build, `finish` joint, das Ergebnis wird vor der Runde als Event in die Revision geschrieben (wie `miniskills_selected`, `:2376-2385`; Reducer `VK/Session/Kernel.lean:27`). Für die Antwortform ein neues Event `turn_form_selected` mit Reducer, Write-Validation und Aufnahme in die Reducer-Listen der Beweise (`systems/native/verified_kernel/proofs/VerifiedKernelProofs/Session/AppendOnly/Core.lean:286-287`, `WorkNonRetiring.lean`), damit die Theoreme weiter gelten.
+- `turn:`-Flags baut `Request.turnMarker` (`VK/Session/Request.lean:151-164`). Neue Flags `form=…`, `reaktion_jetzt=…`, `delegation=…` mit Wahrscheinlichkeiten. Das Flag `opening=on` (`:142-149`) entfällt.
+- `VK/Session/TurnReminders.lean`: Text `opening` (`:16`) streichen. Im statischen Katalog `## Turn reminders` (`:22-28`) die Regeln für die neuen Flags ergänzen: "Die Form ist eine Richtung, keine Grenze. Weiche ab, wenn sonst Wichtiges fehlt oder du Unnötiges sagen würdest. Eine Reaktion ist eine vollständige Antwort. Schweigen ist erlaubt." Ohne Flag: "Antworte in der kleinsten Form, die alles Wichtige enthält."
+- Eine Katalogänderung ändert den Prompt-Snapshot und baut den Cache einmal pro Session neu auf (`VK/Session/Query/Reply.lean:398-405`). Das ist einmalig und unkritisch.
+- Kernel-Tests: `systems/native/verified_kernel/test/` (Request-Bau, Flags), `systems/apps/salix_agent/test/miniskill_selector_test.exs` als Vorlage für `turn_form_selector_test.exs`. `systems/native/verified_kernel/scripts/check.sh` muss grün sein.
 - `resources/salix-system-files/skills/proactive/SKILL.md`: Abschnitt "Write the message" auf dieselben Formen umstellen. Die Pflicht zur abschließenden Frage streichen (Report V19). Reine Information endet ohne Frage.
 
 ---
@@ -86,16 +90,19 @@ Zusätzlich zwei unabhängige Fragen im selben Call:
 ## 3. Reaktionen
 
 ### Datenmodell
-- Eine Reaktion gehört zu einer Nachricht: Nachricht, Akteur (`assistant` oder `user`), Emoji, Zeitpunkt.
-- Pro Akteur höchstens eine Reaktion pro Nachricht. Neues Setzen ersetzt die alte. Entfernen ist möglich.
-- Keine neue Domänen-Entität: Reaktionen sind ein Wert an der bestehenden Entität Message. Ergänze den Eintrag Message in `docs/architecture/DOMAIN_CONCEPTS.md`.
-- Mutation nur über `ConversationServer -> ConversationActor` (AGENTS.md). Neue Operationen im Actor: Reaktion setzen, Reaktion entfernen. Persistenz im Nachrichten-Store, Ereignis an alle abonnierten Clients.
-- Chat-Contract: Feld `reactions` an der Nachricht plus ein Ereignis für Änderungen. Electron, Web und iOS zeigen die Reaktion als kleines Badge an der Blase (wie Tapbacks bei iMessage). Der Nutzer kann ebenfalls reagieren. Seine Reaktion ist für den Router ein normales, kleines Ereignis (siehe unten).
+- Eine Reaktion gehört zu einer Nachricht: Ziel-Nachricht, Akteur (`assistant` oder `user`), Emoji, Zeitpunkt.
+- Pro Akteur höchstens eine Reaktion pro Nachricht. Die neueste gilt, leeres Emoji entfernt.
+- Nachrichten sind append-only (`sa/salix_im/lib/salix_im/conversation_message.ex:18`, `ConversationServer` hat kein Edit, `conversation_server.ex:30-624`). Deshalb ist eine Reaktion eine eigene `app_event`-Nachricht mit `metadata.event_type = "message.reaction"`, `target_message_id`, `actor`, `emoji`. Muster: `message.redelivery` (`sa/salix_im/lib/salix_im/conversation_actor.ex:705-753`).
+- Keine neue Domänen-Entität. Ergänze in `docs/architecture/DOMAIN_CONCEPTS.md` beim Eintrag Message: "Reactions are app_event annotations; the latest per actor and target wins."
+- Anhängen nur über `ConversationServer.append_group_conversation_agent_message` (Assistent, `conversation_server.ex:374`) bzw. `append_group_conversation_message/3` (Nutzer, `:134-135`).
+- Clients: Beide filtern `app_event` per Sperrliste (Web `cl/packages/app/src/components/chat/model/conversationChannel.ts:2313-2327`, iOS `cl/packages/apple-core/Sources/CommaCore/Models.swift:344-348`). `message.reaction` dort aufnehmen und stattdessen als Badge an der Ziel-Blase rendern (wie Tapbacks bei iMessage). Projektion "neueste Reaktion pro Akteur und Ziel" im Client-Modell.
+- Nutzer-Reaktion: neue Comma-Route `POST /v1/comma/groups/:group_id/conversations/:conversation_id/messages/:message_id/reaction` (neben `router.ex:3550`). Long-Press bzw. Rechtsklick auf eine Blase öffnet eine Emoji-Auswahl (häufige zuerst).
 
 ### Werkzeug
-- Neue Operation `im_api.internal.react` mit Ziel-Nachricht (Standard: die letzte Nutzernachricht des Turns) und Emoji (beliebiges einzelnes Emoji). Leeres Emoji entfernt.
-- Läuft durch denselben Engpass wie Sendungen.
-- Telegram: `setMessageReaction` auf die passende Telegram-Nachricht. Telegram erlaubt nur eine feste Emoji-Liste. Nicht erlaubte Emojis werden auf das nächstpassende erlaubte abgebildet (✅ zu 👌 o.ä.) oder entfallen. Die Liste steht in der Telegram-API-Doku, siehe `02` für den Rechercheverweis.
+- Neue Operation `internal.react` (`im_api.internal.react`): Ziel-Nachricht (Standard: die letzte Nutzernachricht des Turns) und Emoji (beliebiges einzelnes Emoji). Leeres Emoji entfernt.
+- Einbau: Manual in `sa/salix_im/lib/salix_im/provider/manuals.ex` (`internal_manual`, ab `:97`, neben `internal.send_message` `:679`), Dispatch in `SalixIM.Provider.Internal.call/3` vor dem Fallback (`provider/internal.ex:399`), IFC in `@contentless` (`sa/salix_agent/lib/salix_agent/ifc/destination.ex:85-93`, dort stehen schon `slack.add_reaction`, `feishu.add_reaction`, `signal.react`). Nicht in `operation_registry.ex` (das führt nur Slack- und Feishu-Operationen).
+- Telegram: neue Operation `telegram.set_reaction` (Bot-API `setMessageReaction`) in `sa/salix_im/lib/salix_im/provider/telegram.ex:32-127`, in die Allowlist für verwaltete Verbindungen (`telegram.ex:233-254`), Manual-Eintrag. Für eingehende Nutzer-Reaktionen `message_reaction` in `allowed_updates` von `setWebhook` aufnehmen (`sa/comma_web/lib/comma_web/telegram_bot/req.ex:66-67`) und im Webhook verarbeiten. Ist die Router-Antwort in Telegram, reagiert `internal.react` dort über `telegram.set_reaction`.
+- Telegram erlaubt nur 73 feste Emojis und für Bots eine Reaktion pro Nachricht. Abbildung der festen Fälle: 🔍 wird 👀, ⏳ wird 👨‍💻, ✅ wird 👌, 👍 bleibt, ❤️ wird ❤ (ohne Variation Selector), 😂 wird 🤣, 📅 wird 👌, ✉️ wird 👌. Freie Emojis außerhalb der Liste entfallen in Telegram. Die Liste steht in der Bot-API-Doku (`ReactionTypeEmoji`), zur Prüfung liegt sie auch im aiogram-Quelltext.
 
 ### Die 8 festen Fälle (stehen in der Tool-Beschreibung)
 | Emoji | Wann |
