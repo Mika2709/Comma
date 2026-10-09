@@ -145,5 +145,5 @@ Kennungen `E..` verweisen auf die Entscheidungsliste aus dem Gespräch. Jede Ent
 11. Zustellung aufs Handy macht der Server (Push, sonst Telegram), nicht mehr der Router.
 12. Die iPhone-App wird in GitHub Actions gebaut und über TestFlight installiert, damit kein Mac nötig ist.
 13. Reaktionen sind `app_event`-Annotationen an Nachrichten, weil Nachrichten append-only sind.
-14. Jev 1.13 über OpenRouter statt Strands Decider 2B lokal (Weck-Gate, Antwortform, Delegation, Gedächtnis-Gate). Nachrichten- und Mailtexte gehen dafür an OpenRouter. Mit GPU-Server wäre es lokal möglich (`14` Abschnitt 2).
+14. Jev 1.13 über OpenRouter statt Strands Decider 2B lokal (Weck-Gate, Antwortform, Delegation, Gedächtnis-Gate). Nachrichten- und Mailtexte gehen dafür an OpenRouter. Mit GPU-Server laufen Weck-Gate, Antwortform, Delegation, Gedächtnis-Gate und Aktions-Gate lokal, nur eine Stichprobe von 10 Prozent geht noch für Schatten-Vergleiche an OpenRouter (`14` Abschnitt 2).
 15. Kein eigener Graphiti-Dienst mit Graph-Datenbank. Seine Widerspruchs- und Gültigkeitslogik steckt im Hindsight-Fork (`04`).

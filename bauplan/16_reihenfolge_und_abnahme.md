@@ -22,7 +22,7 @@ Ergebnis: Comma läuft im Ist-Zustand stabil beim Nutzer.
 
 ## Phase 1: Fundament (parallel)
 
-Diese Pakete laufen parallel in getrennten Worktrees. Nur P10 wartet auf P7.
+Diese Pakete laufen parallel in getrennten Worktrees. Ausnahmen: P10 wartet auf P7, P9 auf P8, der Modellteil von P5 auf P1.
 
 | Paket | Datei | Inhalt | Hängt ab von |
 |---|---|---|---|
@@ -34,7 +34,7 @@ Diese Pakete laufen parallel in getrennten Worktrees. Nur P10 wartet auf P7.
 | P6 Computer | `11` | `LocalCDP`-Provider mit AX-Baum, Windows-MCP als MCP-Server, URL-Policy, Effektklassen, Leases | Phase 0 |
 | P7 Unsichtbare Helfer | `08` | Task-Karten weg, Abnahme aus, Stillstandserkennung (V25), Abbrechen | Phase 0 |
 | P8 Eval-Rahmen und Dashboard | `15` | `mix assistant.eval` mit Szenario-Format und Richter, alle Suiten als Gerüst mit ersten Fällen, Dashboard-Seite "Assistent", Debug-Ansicht Gedächtnis, Alarme | Phase 0 |
-| P9 Stabiler Präfix und Thinking-Bindung | `03` Abschnitt 7 (Schritte 1, 2, 4, 5) | Messung, Plattform-Hinweis ins Delta, `turn_scoped`-Reminder und Miniskills speichern, Anhänge stabil, Snapshot nur beim Rebuild, Dashboard-Zähler. Kernel-PR mit Beweisen. | Phase 0 |
+| P9 Stabiler Präfix und Thinking-Bindung | `03` Abschnitt 7 (Schritte 1, 2, 4, 5) | Messung, Plattform-Hinweis ins Delta, `turn_scoped`-Reminder und Miniskills speichern, Anhänge stabil, Snapshot nur beim Rebuild, Feld `thinking_cutoff_id` in jedem Compaction-Commit (auch der heutigen Compaction), Dashboard-Zähler. Kernel-PR mit Beweisen. | P8 (Evals, Dashboard) |
 | P10 Todo-Board und UI | `09` | Board-Projektion, CalendarItem `Task` erweitern, Board-Tools, rechte Leiste, Vorschläge integriert, Picker, Vorlagen, Server-Zustand, Web-Widgets mit Checkliste | P7 |
 
 P10 steht in Phase 1, weil Rebuild (R8, Prüfliste), Hidden Helper (Zusagen als Board-Items) und Weck-Gate (Board-Todo, Briefing) es brauchen.

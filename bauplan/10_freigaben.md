@@ -99,6 +99,7 @@ Jede Entscheidung landet im `decision_log` (`14`) und in einem eigenen Freigabe-
   - Browser-Klick: Domain, Button-Beschriftung, Betrag falls erkannt, Bildausschnitt des Elements aus dem letzten Screenshot.
   - Desktop: Fenster, Element, Bildausschnitt.
   - Shell: Befehl.
+- Variante mit Warnhinweis, wenn das Modell P ≥ 0,70 meldet (Stufe "eskalieren" in `14` Abschnitt 2): Karte mit roter Kopfzeile "Wirkt unumkehrbar oder nach außen" und einem Satz Begründung aus Effektklasse, Ziel und erkanntem Betrag. Knöpfe wie unten unter "Antworten".
 - Auf dem iPhone als Push mit Aktionsknöpfen (`13`). Telegram mit Inline-Knöpfen als Ausweichweg (bestehender Pfad `async_ops.ex:165`).
 
 ### Antworten

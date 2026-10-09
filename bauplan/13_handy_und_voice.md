@@ -40,7 +40,7 @@ Der Nutzer braucht dafür keinen Mac: Gebaut wird in GitHub Actions auf einem ma
 
 ### Zustellregel (Server, deterministisch)
 Neues Modul `Comma.HomeDelivery`, ausgelöst, wenn der Assistent eine Nachricht in Home anhängt (Abo auf die Conversation-Mutationen, Muster `native_push_listener.ex:29-35`):
-1. Ist eine Client-Session aktiv (Desktop, Web oder iPhone im Vordergrund, letzte Aktivität unter 2 Minuten): nichts weiter. Der Nutzer sieht es im Chat.
+1. Ist der Nutzer gerade an einem Gerät (Regel unter "Anwesenheit": letzte Eingabe unter 2 Minuten): nichts weiter. Der Nutzer sieht es im Chat.
 2. Sonst: APNs-Push an alle registrierten iPhones des Nutzers.
 3. Schlägt APNs fehl (kein Gerät registriert, `BadDeviceToken`, Timeout): Server sendet selbst an Telegram (Bot-API, an den Chat des Nutzers), falls eingerichtet.
 4. Ein Kanal pro Nachricht, kein Rundversand (V68). Mehrere Nachrichten desselben Turns werden zu einer Push-Meldung zusammengefasst (erste Nachricht als Text, "+2 weitere").
@@ -60,9 +60,10 @@ Folge: Der Router muss nicht mehr selbst an Telegram senden. `proactive_delivery
 ### Anwesenheit (F22)
 Datei `systems/apps/comma_core/lib/comma/accounts/sessions.ex`:
 - `touch_active/2` (`:183-206`) nimmt heute nur `client_kind` `electron` an und gibt sonst `{:error, :not_desktop_app}`. Neu: auch `ios` und `web` (nicht eingeschränkte Sessions, gleiche Bedingungen wie bei `electron`). Route bleibt `/v1/comma/auth/session/activity`.
-- Der Web-Client meldet Aktivität wie Electron (`clients/apps/electron/src/main/modules/session/activity-reporter.ts`): alle 60 Sekunden, aber nur, wenn es in den letzten 5 Minuten eine Eingabe gab und der Tab sichtbar ist. Die iOS-App meldet im Vordergrund alle 60 Sekunden.
-- `HomeDelivery` nutzt eine eigene Abfrage `active_within?(user_id, 120)`: irgendeine Session (`electron`, `ios`, `web`) mit `active_at` in den letzten 2 Minuten. `present?/2` (`:209-220`, 10 Minuten, nur `electron`) bleibt für die bestehenden Aufrufer unverändert.
-- Tests: `touch_active` für `ios` und `web` ok, für eingeschränkte Sessions abgelehnt; `HomeDelivery` schickt keinen Push, wenn das Web vor 90 Sekunden aktiv war, und schickt einen nach 3 Minuten Ruhe.
+- Der Web-Client meldet Aktivität wie Electron (`clients/apps/electron/src/main/modules/session/activity-reporter.ts`): alle 60 Sekunden, solange es in den letzten 5 Minuten eine Eingabe gab und der Tab sichtbar ist. Die iOS-App meldet im Vordergrund alle 60 Sekunden.
+- Jeder Bericht trägt neu `idle_seconds`: Electron `powerMonitor.getSystemIdleTime()`, Web Sekunden seit dem letzten Eingabe-Ereignis im Tab, iOS 0 im Vordergrund. Der Server speichert daraus `last_input_at` = Empfangszeit minus `idle_seconds` an der Session. Grund: Ein Bericht allein heißt nur "Eingabe in den letzten 5 Minuten", das ist für die Push-Entscheidung zu grob.
+- `HomeDelivery` nutzt eine eigene Abfrage `active_within?(user_id, 120)`: irgendeine Session (`electron`, `ios`, `web`) mit Bericht in den letzten 90 Sekunden und `last_input_at` in den letzten 120 Sekunden. `present?/2` (`:209-220`, 10 Minuten, nur `electron`) bleibt für die bestehenden Aufrufer unverändert.
+- Tests: `touch_active` für `ios` und `web` ok, für eingeschränkte Sessions abgelehnt; kein Push bei einem Web-Bericht vor 30 Sekunden mit `idle_seconds` 60; Push bei einem Bericht vor 30 Sekunden mit `idle_seconds` 200; Push, wenn der letzte Bericht 3 Minuten alt ist.
 
 ---
 

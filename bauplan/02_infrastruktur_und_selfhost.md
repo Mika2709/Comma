@@ -36,10 +36,10 @@ Comma braucht vier Origins unter einer registrierbaren Domain (`systems/DEPLOYME
 | `COMMA_ADMIN_URL` | `https://admin.<domain>` | 127.0.0.1:8082 |
 | `COMMA_API_URL` | `https://api.<domain>` | 127.0.0.1:8081 |
 | `COMMA_SALIX_URL` | `https://salix.<domain>` | 127.0.0.1:4000 |
-| `COMMA_UI_SANDBOX_URL` (neu) | `https://ui.<domain>` | statische Datei, kein Dienst |
+| `COMMA_UI_SANDBOX_URL` (neu) | `https://ui.<domain>` | 127.0.0.1:8083 (statische Datei im `web`-Container) |
 
 Der fünfte Origin ist neu und nur für Web-Widgets (`09` Abschnitt 3, "iPhone und Web"):
-- Der Web-Build schreibt `dynamicUiDocument()` (`clients/packages/chat-contract/src/dynamic-ui/runtime.ts`) als statische Datei `runtime/index.html` in ein eigenes Ausgabeverzeichnis. Caddy liefert sie unter `https://ui.<domain>/runtime/` aus, jeder andere Pfad gibt 404.
+- Der Web-Build schreibt `dynamicUiDocument()` (`clients/packages/chat-contract/src/dynamic-ui/runtime.ts`) als statische Datei `runtime/index.html` in ein eigenes Ausgabeverzeichnis. `selfhost/Web.Dockerfile` kopiert es nach `/srv/ui` und gibt Port 8083 frei. `selfhost/Caddyfile` (der Caddy im `web`-Container) bekommt einen Block `:8083`, der nur `/runtime/` aus `/srv/ui` liefert, jeder andere Pfad gibt 404, und dort die Header unten setzt. `compose.yaml` bindet 8083 wie 8080 bis 8082 an `127.0.0.1`. Der Caddy auf dem Host leitet `ui.<domain>` an `127.0.0.1:8083`.
 - Header auf diesem Origin: `Content-Security-Policy` nach `09` Abschnitt 3 (Web-Variante von `dynamicUiCsp`) plus `frame-ancestors https://app.<domain>`, `Cache-Control: no-store`, `Referrer-Policy: no-referrer`. Caddy entfernt jedes `Set-Cookie`.
 - Der Web-Client bekommt die URL über `COMMA_UI_SANDBOX_URL` (Build- bzw. Laufzeit-Config wie die anderen URLs).
 
@@ -104,7 +104,7 @@ Der fünfte Origin ist neu und nur für Web-Widgets (`09` Abschnitt 3, "iPhone u
   - 02:30 Richter-Lauf, danach Kalibrierung (`14` Abschnitte 3 und 4),
   - 03:00 Gedächtnispflege (`04`, Status-Sweep und Widerspruchs-Job),
   - 04:30 Backup (systemd-Timer).
-- **Backup nächtlich 04:30** auf dem Linux-VPS:
+- **Backup nächtlich 04:30** auf dem Linux-VPS, systemd-Timer mit `OnCalendar=*-*-* 04:30:00 Europe/Berlin` (Zeitzone des Nutzers aus Startfrage 18; der VPS selbst läuft auf UTC). Die Oban-Crons laufen mit derselben Zeitzone (`timezone` in der Oban-Cron-Konfiguration):
   0. Warten, bis kein Oban-Job der Queues für Evals, Richter, Kalibrierung und Gedächtnispflege mehr `executing` ist, höchstens 30 Minuten. Läuft danach noch einer, verschiebt sich das Backup um 30 Minuten (höchstens zweimal), dann läuft es trotzdem; der Job wird beim Stopp abgebrochen und von Oban neu gestartet.
   1. `docker compose stop` (nicht `down`).
   2. restic-Backup der Volume-Verzeichnisse plus `.env`, plus aktueller Git-Commit als Tag.

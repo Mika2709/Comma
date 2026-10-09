@@ -19,7 +19,7 @@ Pfad-Abkürzungen: `VK/` = `systems/native/verified_kernel/runtime/VerifiedKerne
 
 Bei Anthropic werden 1 und 2 zum `system`-String (`VK/Provider/Messages.lean:64-71`). Eine neue Summary ändert also den ersten gecachten Block. Das ist beim Rebuild gewollt. Teile 5 und 6 werden pro Request neu gebaut und nicht gespeichert. Das bricht bei Anthropic ab Opus 5.5 die Thinking-Bindung (Abschnitt 7).
 
-Anthropic sendet Thinking früherer Runden mit, solange das Modell gleich ist (`provider_meta.anthropic_thinking`, `VK/Provider/Messages.lean:34-37`).
+Anthropic sendet Thinking früherer Runden mit, solange das Modell gleich ist (`provider_meta.anthropic_thinking`, `VK/Provider/Messages.lean:34-38`).
 
 ### Auslöser heute
 - Kette: `config_facts/1` (`SA/internal_session_actor.ex:1535-1540`) → Drive `activation_plan` (`VK/Session/Drive.lean:475-485`) → `CompactionHost.activationPlan` (`VK/Session/CompactionHost.lean:520-524`) → `required` (`:227-232`) → `StateQuery.shouldCompact` (`VK/Session/Query/State.lean:228-245`).
@@ -153,6 +153,7 @@ Jede Rolle ist ein eigener API-Call mit vollem Kontext des zu verdichtenden Bere
 - R8 an das Board (`09`), als Vorschläge für den Router-Kontext, nicht als direkte Änderung sichtbarer Items. Ausnahme: neue Zusagen werden direkt als Items angelegt.
 - R4-Kürzungen als Overlay-Events.
 - Thinking im behaltenen Ende: Commit setzt `thinking_cutoff_id` (Abschnitt 7, Schritt 3).
+- Reasoning bei Anbietern ohne Bindung: Der Commit speichert die Nachrichten-IDs aus der R5-Liste als `reasoning_drop_ids` (höchstens 500 IDs, ersetzt beim nächsten Rebuild). Der Chat-Encoder (`VK/Provider/Messages.lean:90-91`, `chat_message_extra`) lässt für diese IDs die `reasoningFields` weg. Das Overlay reicht dafür nicht, weil es `provider_meta` nicht erreicht.
 
 ---
 
@@ -237,7 +238,7 @@ Begründungen:
 
 ## 7. Gebundene Thinking-Blöcke (Anthropic ab Opus 5.5)
 
-Gilt, sobald das Hauptmodell ein Anthropic-Modell ist. Schritte 1, 2, 4 und 5 sind Paket P9 in `16` (Phase 1), Schritt 3 gehört zu P11 Rebuild. P9 kommt zuerst, weil schon der Ist-Zustand betroffen ist.
+Gilt, sobald das Hauptmodell ein Anthropic-Modell ist. Paket P9 in `16` (Phase 1) baut alle Schritte. Das Feld `thinking_cutoff_id` aus Schritt 3 setzt P9 schon bei der heutigen Compaction, weil auch sie ein behaltenes Ende mit Thinking hat. P11 Rebuild nutzt dasselbe Feld. Header und `drop_block` setzt bereits Phase 0 (`16`), damit der Ist-Zustand nicht mit Fehler 400 scheitert.
 
 ### Fakt
 Bei Claude Fable 5.1, Opus 5.5, Sonnet 5.5 und Haiku 5.5 ist jeder `thinking`-Block an den Präfix gebunden, der ihn erzeugt hat: `system`, die Tool-Menge und alle Nachrichten davor, byte-genau. Ändert sich davon etwas zwischen zwei Requests, ist jeder spätere Thinking-Block ungültig. Für Anthropic-Konten, die ab 31.08.2026 angelegt wurden, lehnt die API das mit Fehler 400 ab, auf allen Plattformen. Ältere Konten werden nicht geprüft, außer das Feld unten ist gesetzt. Opus 5.5 kann Thinking nicht abschalten (nur `thinking: {type: "adaptive"}`). Quelle: Skill `claude-api`, `shared/model-migration.md` "Breaking change 3", und `shared/preserved-thinking-migration.md`.
@@ -254,7 +255,7 @@ Bei Claude Fable 5.1, Opus 5.5, Sonnet 5.5 und Haiku 5.5 ist jeder `thinking`-Bl
 | Tool-Menge (Tool-Disclosure, Plugins, MCP) | `tools` ändert sich mitten in der Session. |
 | Rebuild (Abschnitte 2 und 3) | Neue Summary im `system`, R4-Kürzungen im behaltenen Ende. |
 
-Nicht betroffen: das Aktivierungs-Delta. Es wird mit der Runde gespeichert (`activationEvents`, Beschreibung in `VK/Session/LoopHost.lean:383-386`) und später unverändert wieder gesendet. Gleiches gilt für `personal_memory` (`05`), das bis zum Rebuild sichtbar bleibt.
+Nicht betroffen: das Aktivierungs-Delta. Es wird mit der Runde gespeichert (`activationEvents`, `VK/Session/LoopHost.lean:303`, genutzt in `loopRecord` ab `:387`) und später unverändert wieder gesendet. Gleiches gilt für `personal_memory` (`05`), das bis zum Rebuild sichtbar bleibt.
 
 ### Schritte
 1. **Messen.** Der Anthropic-Adapter sendet für die vier Modelle immer den Header `anthropic-beta: thinking-binding-controls-2026-08-01` und `thinking.block_binding.prefix_mismatch_behavior: "drop_block"`. Jede Antwort enthält dann `input_transformations`. Der Adapter speichert jeden Eintrag (`type`, `reason`, `path`) mit Session und Runde im LLM-Log. Danach eine echte Session fahren: mehrere Tool-Runden, Wechsel App und Telegram, ein Bild, ein Miniskill, ein Rebuild. Jeder Eintrag `prefix_binding_mismatch` zeigt auf eine Stelle der Tabelle oder eine neue. Vorgehen: Skill `claude-api`, Workflow `preserved-thinking-migration`.
@@ -265,13 +266,13 @@ Nicht betroffen: das Aktivierungs-Delta. Es wird mit der Runde gespeichert (`act
    - **`project_knowledge`:** gleiche Regel wie `personal_memory`, sichtbar bis zum nächsten Rebuild.
    - **Prompt-Snapshot und Katalog:** Die Migration in `ReplyQuery.promptSnapshot` läuft nur noch im Rebuild-Commit. Dazwischen bleibt der gespeicherte Snapshot byte-gleich. Eine Regeländerung, die sofort gelten muss, kommt bis dahin als Migrationshinweis ins Aktivierungs-Delta (bestehender Mechanismus `SA/migration_notice.ex`, neue `@version`, gespeichert wie jedes Delta). Der Rebuild baut `system` ohnehin neu und entfernt das alte Thinking (Schritt 3).
    - **Tool-Menge:** Änderungen zwischen zwei Rebuilds (Plugin verbunden, MCP-Server neu) laufen über `drop_block`, das Thinking ab der Änderung fällt einmal weg. Zeigt die Messung aus Schritt 1 mehr als eine Tool-Änderung pro Tag, dann Umbau auf die volle Tool-Menge bei Session-Start und Rebuild mit `defer_loading: true` für noch verborgene Tools und Änderungen als `tool_addition`/`tool_removal`-Blöcke in einer `role: "system"`-Nachricht (Beta `mid-conversation-tool-changes-2026-07-01`).
-3. **Rebuild:** Der Commit des Rebuilds speichert `thinking_cutoff_id` = höchste Nachrichten-ID zum Commit-Zeitpunkt, als Feld im bestehenden Compaction-Commit (`CompactionHost.lean:461-490`), kein neues Event. Der Anthropic-Encoder (`Messages.lean:34-37`) sendet für Assistant-Nachrichten mit ID ≤ `thinking_cutoff_id` kein Thinking. Text und Tool-Calls bleiben. Weil der Rebuild nie mitten in einer Tool-Runde läuft (Abschnitt 1), geht kein Thinking einer laufenden Runde verloren.
-4. **Produktion:** `drop_block` bleibt dauerhaft gesetzt (lieber einmal Thinking verlieren als Fehler 400). In CI und Evals gilt `"error"`, damit jede neue Präfix-Änderung einen Test bricht.
-5. **Überwachen:** Dashboard (`15`) zählt `thinking_dropped` pro Tag nach `reason`. `model_binding_mismatch` nach einem Modellwechsel ist erwartet. Jeder `prefix_binding_mismatch` ohne Tool-Änderung davor ist ein Fehler und erzeugt einen Dashboard-Alarm.
+3. **Rebuild:** Der Commit des Rebuilds speichert `thinking_cutoff_id` = höchste Nachrichten-ID zum Commit-Zeitpunkt, als Feld im bestehenden Compaction-Commit (`CompactionHost.lean:461-490`), kein neues Event. Der Anthropic-Encoder (`Messages.lean:34-38`) sendet für Assistant-Nachrichten mit ID ≤ `thinking_cutoff_id` kein Thinking. Text und Tool-Calls bleiben. Weil der Rebuild nie mitten in einer Tool-Runde läuft (Abschnitt 1), geht kein Thinking einer laufenden Runde verloren.
+4. **Produktion:** `drop_block` bleibt dauerhaft gesetzt (lieber einmal Thinking verlieren als Fehler 400). In Evals gilt `"error"`, damit jede neue Präfix-Änderung die Suite rot macht. In CI prüft der Präfix-Test (unten) dasselbe ohne API-Call.
+5. **Überwachen:** Dashboard (`15`) zählt `thinking_dropped` pro Tag nach `reason`. `model_binding_mismatch` nach einem Modellwechsel ist erwartet. Jeder `prefix_binding_mismatch` ohne Tool-Änderung oder Deploy davor ist ein Fehler und erzeugt einen Dashboard-Alarm. Ein Deploy, der das Rendering bereits gesendeter Nachrichten ändert (zum Beispiel der erweiterte Zeitblock aus `12`), verwirft das Thinking genau einmal; das Dashboard markiert solche Einträge mit dem Deploy-Zeitpunkt als erwartet.
 6. Gilt für jeden Weg, der Anthropic-Requests baut (API-Key und Abo-Konto).
 
 ### Kernel und Beweise
-- Gespeicherte `turn_scoped`-Nachrichten und `thinking_cutoff_id` laufen über bestehende Event-Arten (Laufzeit-Nachricht der Runde, Compaction-Commit). Kein neues Event, kein neuer Reducer. `scripts/check.sh` muss grün sein. TLA unverändert (Begründung wie Abschnitt 1, Punkt 11).
+- Gespeicherte `turn_scoped`-Nachrichten, `thinking_cutoff_id` und `reasoning_drop_ids` laufen über bestehende Event-Arten (Laufzeit-Nachricht der Runde, Compaction-Commit). Kein neues Event, kein neuer Reducer. `scripts/check.sh` muss grün sein. TLA unverändert (Begründung wie Abschnitt 1, Punkt 11).
 
 ### Tests
 - Präfix-Test (Kernel, `protocol` `neutral` und Anthropic-Encoding): Für zwei aufeinanderfolgende Requests einer Session sind `system`, `tools` und `messages` bis zu den neu angehängten Nachrichten byte-gleich. Fälle: Tool-Runde, Wechsel App zu Telegram, Bild, Miniskill, zweite Aktivierung.

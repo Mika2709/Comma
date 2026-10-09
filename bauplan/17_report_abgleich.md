@@ -77,7 +77,7 @@ Legende: **Plan** = wird gebaut (Datei), **teilweise** = Kern wird gebaut, Rest 
 | V33 | Strukturierte Ausgaben robuster | teilweise `03` und `14` (Crew- und Adapter-Ausgaben werden geprüft und neu angefragt) |
 | V34 | Erfolgreiche Abläufe wiederverwenden | teilweise `04` (Crew schreibt Abläufe als Themenseite; Miniskills bleiben) |
 | V35 | Loops von langen Skripten isolieren | später |
-| V36 | Ereignisspitzen in Loops | später |
+| V36 | Ereignisspitzen in Loops | teilweise `07` Abschnitt 2 (Sammelpuffer für `agent.notify`) |
 | V37 | Ausgefallene Loops selbst reparieren | teilweise `07` (V39-Wächter für Quellen-Jobs) |
 | V38 | Verbrauch je Task dauerhaft | teilweise `15` (Kosten pro Komponente) |
 | V39 | Proaktivität ohne Home-Besuch, hängende Jobs | Plan `07` |

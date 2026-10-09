@@ -41,7 +41,7 @@ Stell dem Nutzer diese Fragen in einer einzigen Nachricht. Kurz, ohne Erklärung
 20. Beide proaktiven Budgets fallen ersatzlos weg. Es bleibt nur ein Schleifenschutz, der identische Wiederholungen desselben Ereignisses blockiert, nie unterschiedliche Ereignisse.
 21. Hindsight läuft als eigener, geforkter Dienst neben Comma (nicht nach Elixir portiert).
 22. Diese Punkte sind ebenfalls für ihn entschieden (Begründungen in `01`, letzter Abschnitt). Frag gesammelt: "Widerspruch bei einem davon?"
-    - a) Weck-Gate, Antwortform, Delegation und Gedächtnis-Gate laufen über Jev bei OpenRouter statt lokal mit Strands Decider; das Aktions-Gate nutzt Clef bei OpenRouter statt selbst gehostet. Dafür gehen Nachrichten- und Mailtexte an OpenRouter. Alternative: ein GPU-Server (Hetzner GEX44, etwa 200 € im Monat, Preis beim Bestellen prüfen), dann bleiben diese Texte auf seinen Servern (`14` Abschnitt 2, letzter Absatz).
+    - a) Weck-Gate, Antwortform, Delegation und Gedächtnis-Gate laufen über Jev bei OpenRouter statt lokal mit Strands Decider; das Aktions-Gate nutzt Clef bei OpenRouter statt selbst gehostet. Dafür gehen Nachrichten- und Mailtexte an OpenRouter. Alternative: ein GPU-Server (Hetzner GEX44, etwa 200 € im Monat, Preis beim Bestellen prüfen), dann laufen diese fünf Entscheidungen lokal und nur eine Stichprobe von 10 Prozent geht für Vergleiche noch an OpenRouter, auf Wunsch gar nichts (`14` Abschnitt 2, letzter Absatz).
     - b) Zwei Maschinen: Linux-VPS für Comma, Windows-VPS als Rechner des Assistenten, verbunden über Tailscale.
     - c) Gmail bleibt bei Composio, ohne den Filter `is:important`. Das Weck-Gate entscheidet.
     - d) Interne Prompts Englisch, alles Sichtbare Deutsch.
@@ -109,7 +109,7 @@ Das ist Teil des Produkts und gilt auch für dich während des Baus.
   - PR-Titel: `feat: ...`, `fix: ...`, `refactor: ...`.
 - Die Skill `ste-writing`, auf die `AGENTS.md` verweist, liegt nicht in diesem Checkout. Schreib Doku in kurzen, aktiven Sätzen.
 - Zitierte Prompt-Regeln in diesem Plan sind sinngemäß und meist auf Deutsch. Schreib sie im Prompt, in Tool-Beschreibungen und Skills auf Englisch. Nur Texte, die der Nutzer sieht, sind Deutsch.
-- Ist das Hauptmodell ein Anthropic-Modell, kommt `03` Abschnitt 7 (Thinking-Bindung) vor jeder anderen Änderung am Request-Aufbau (Paket P9 in `16`). Sonst scheitern Requests mit Fehler 400 oder verlieren ihr Thinking.
+- Ist das Hauptmodell ein Anthropic-Modell, setzt Phase 0 sofort Header und `drop_block` (`03` Abschnitt 7, Schritt 1), sonst scheitern Requests mit Fehler 400. P9 macht danach den Präfix stabil. Jede spätere Änderung am Request-Aufbau muss den Präfix-Test aus `03` Abschnitt 7 bestehen.
 - Der Nutzer betreibt sein eigenes Deployment. Die Regeln in `AGENTS.md` zu Staging und Produktion von AFK-surf betreffen ihn nicht. Er deployt seinen Fork-Main auf seinen VPS (`02`).
 - Halte Änderungen modular (eigene Module, klare Schalter), damit Upstream-Updates von AFK-surf/Comma weiter einfließen können.
 - Arbeite parallel in Worktrees, wo `16_reihenfolge_und_abnahme.md` es erlaubt.
