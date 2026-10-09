@@ -78,8 +78,15 @@ Vollständige Änderungsliste:
 **Tracking-Kapazität (V45)**
 12. `mail_interaction.ex:4` (`@limit 128`) und `:192`: Neues Tracking scheitert heute bei 128 Quellen pro Owner, nichts wird verdrängt (`docs/architecture/DOMAIN_CONCEPTS.md:1356`). Ohne Budgets kommen mehr Vorgänge an. Neu: Vorgänge im Zustand `handled`, deren letzte Änderung älter als 14 Tage ist, werden beim Anlegen eines neuen Eintrags entfernt (älteste zuerst). Offene, gesnoozte und Vorgänge mit Task bleiben immer. Die Grenze 128 bleibt als Größenschutz für den Home-Wert (256 KB). Inventar-Zeile `:1356` entsprechend anpassen.
 
+**Loop-Budget `agent.notify` umbauen (E57, README Frage 20)**
+Heute (`sa/salix_agent/lib/salix_agent/loops.ex:46-54`, `admit_notification/2` ab `:525`, Aufruf in `loops/capabilities.ex:385-401`): höchstens 6 Weckungen pro 10 Minuten pro Loop, jede weitere wird mit `rate_limited` verworfen, nach einer Stunde Dauerbegrenzung wird der Loop pausiert. Damit gehen bei einem Watch-Loop auch verschiedene wichtige Ereignisse verloren. Neu:
+13. Die ersten 6 Weckungen pro 10-Minuten-Fenster gehen einzeln durch wie heute.
+14. Jede weitere Weckung im selben Fenster wird nicht verworfen, sondern in einen Sammelpuffer am Loop-Datensatz gelegt (`notify_batch`: Liste aus `dedup_key`, Inhalt bis 2 KB, Zeitpunkt; höchstens 50 Einträge, darüber nur ein Zähler "plus N weitere"). `agent.notify` antwortet dem Loop mit `batched` statt `rate_limited`.
+15. 60 Sekunden nach dem ersten Eintrag im Puffer geht der Puffer als eine gesammelte Weckung an die Session, über denselben Zustellweg (`deliver_notification/4`, Quell-ID `loop:<id>:batch:<erster dedup_key>`). Zeitgeber: dauerhafter Timer über `SalixStore.Timers.register/1`, Kind `loop_notify_flush`, eine Timer-ID pro Loop. Damit kommt höchstens eine gesammelte Weckung pro Minute, kein Ereignis geht verloren, und die Verzögerung ist höchstens 60 Sekunden.
+16. Pausiert (`paused_by: "budget"`) wird ein Loop nur noch, wenn derselbe `dedup_key` innerhalb einer Stunde mehr als 20 Mal kommt. Das ist ein Fehler im Loop (gleiches Ereignis immer wieder), kein wichtiges neues Ereignis. Der Lifecycle-Hinweis an die Session bleibt (`notify_lifecycle`, `loops.ex:870`). Zähler pro Schlüssel am Loop-Datensatz, höchstens die letzten 64 Schlüssel.
+17. Test in `sa/salix_agent/test/loops_test.exs` ersetzt den heutigen Test ab `:342` ("rate-limits and then pauses a chatty loop"): sieben verschiedene dringende Watch-Ereignisse in 10 Minuten erreichen alle den Router (sechs einzeln, das siebte spätestens 60 s danach in einer gesammelten Weckung); 21 Mal derselbe `dedup_key` in einer Stunde pausiert den Loop. Doku-Satz `docs/salix/tasks-background-execution.md:185` ("within its existing notification budget") anpassen.
+
 **Bleibt bewusst**
-- Das Loop-Budget `agent.notify` (6 Weckungen pro 10 Minuten für agentengeschriebene Loops, `sa/salix_agent/lib/salix_agent/loops.ex:13,46-60`) ist ein Schutz gegen fehlerhafte Loops, kein Meldebudget. Es bleibt.
 - Alle Dedupe-Mechanismen bleiben. Das ist der Schleifenschutz: Dasselbe Ereignis wird nie zweimal gemeldet, verschiedene Ereignisse immer.
 - Für die Dedupe-Lücke bei Nicht-Gmail-Quellen bekommt das Weck-Gate als Eingabe, wie oft und wann dasselbe Matter schon präsentiert wurde. Ist nur Kontext hinzugekommen, entscheidet es meist `still`.
 
@@ -153,6 +160,6 @@ Siehe `13_handy_und_voice.md`: iPhone-Push für Meldungen, iPhone zählt als akt
 
 ## 8. Abnahme
 
-- Tests: V39 (hängender und verworfener Job), V50, keine Budgets (zehn kritische Meldungen an einem Tag werden alle zugestellt), Dedupe (gleiches Ereignis zweimal, eine Meldung), harte Regeln, Gate-Ausfall, `revisit_at`, Erstverbindung.
+- Tests: V39 (hängender und verworfener Job), V50, keine Budgets (zehn kritische Meldungen an einem Tag werden alle zugestellt), Loop-Sammelpuffer (sieben verschiedene Ereignisse in 10 Minuten kommen alle an), Dedupe (gleiches Ereignis zweimal, eine Meldung), harte Regeln, Gate-Ausfall, `revisit_at`, Erstverbindung.
 - Eval-Suite "Proaktivität" (`15`) grün.
 - Abnahmetests 1, 3 und 5 aus `16`.

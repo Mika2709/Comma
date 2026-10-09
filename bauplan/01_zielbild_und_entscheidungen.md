@@ -38,7 +38,7 @@ Kennungen `E..` verweisen auf die Entscheidungsliste aus dem Gespräch. Jede Ent
 - Cleanup-Crew aus mindestens 6 parallelen Calls, jeder mit vollem Kontext und fester Aufgabe (E36 bis E38). Bei zu großem Kontext Aufteilung nach Typ: nur Text, Text mit Thinking, Tool-Calls (E41).
 - Zwei Verifier mit unterschiedlichen Modellen prüfen alles und lösen Probleme automatisch (E39).
 - Keine AI schreibt direkt in Gedächtnis oder Summary. Worker liefern strukturierte Ergebnisse, normaler Code trägt sie ein (E40).
-- Die Summary wächst nicht von Tag zu Tag. Ein Crew-Mitglied hält ein festes Budget ein. Kernfakten über den Nutzer bleiben fest im Kontext (E34).
+- Die Summary wächst nicht von Tag zu Tag. Ein Crew-Mitglied hält ein festes Budget ein. Der Kernblock mit den wichtigsten Fakten über den Nutzer bleibt fest im Kontext (E34, `03` Abschnitt 2).
 - Wartet der Router auf einen Helfer, wird der Cache warm gehalten, anbieterneutral (E35).
 
 ### Gedächtnis (`04`, `05`)
@@ -78,7 +78,7 @@ Kennungen `E..` verweisen auf die Entscheidungsliste aus dem Gespräch. Jede Ent
 - Primär: Weck-Gate Jev 1.13; Antwortform und Delegation Jev 1.13; Gedächtnis-Mittelband Jev 1.13 nach Reranker-Schwelle; Aktions-Gate feste Regeln, dann Clef 27B.
 - Schattenkandidaten: DeepSeek V4.1 Flash mit Logprobs (E64), OpenAI Luna Decisions, Clef-flash, Liquid d1.
 - Abweichung von der früheren Empfehlung "Strands Decider 2B lokal": Der VPS hat keine GPU, auf der CPU ist das Modell für den Weg vor jeder Antwort zu langsam. Deshalb Jev primär. Strands läuft nur, wenn eine GPU dazukommt.
-- Abweichung "Clef 27B selbst gehostet": läuft über OpenRouter (`cloudflare/clef`, 66k Kontext) mit fest gepinnter, datierter Modellversion. Selbst hosten bräuchte eine GPU mit über 50 GB. Workers AI scheidet aus, weil es langen Text-State auf etwa 2k Tokens kürzt.
+- Abweichung "Clef 27B selbst gehostet": läuft über OpenRouter (`cloudflare/clef`, 66k Kontext) mit fest gepinnter, datierter Modellversion. Selbst hosten bräuchte in voller Genauigkeit eine GPU mit über 50 GB, in 4-Bit etwa 16 GB (Option GPU-Server in `14` Abschnitt 2). Workers AI scheidet aus, weil es langen Text-State auf etwa 2k Tokens kürzt.
 - Modellversionen werden fest gepinnt, nie `latest`.
 - Beim Aktions-Gate darf ein Modell eine Rückfrage hinzufügen, nie eine wegnehmen.
 
@@ -130,6 +130,8 @@ Kennungen `E..` verweisen auf die Entscheidungsliste aus dem Gespräch. Jede Ent
 
 ## Festgehaltene Claude-Entscheidungen (beim Start bestätigen lassen)
 
+`README.md` fragt 1 bis 3 einzeln (Fragen 19 bis 21) und 4 bis 15 gesammelt (Frage 22) ab.
+
 1. Abnahme standardmäßig aus.
 2. Budgets ersatzlos weg, nur Schleifenschutz gegen identische Wiederholungen.
 3. Hindsight als geforkter Dienst, nicht portiert.
@@ -143,3 +145,5 @@ Kennungen `E..` verweisen auf die Entscheidungsliste aus dem Gespräch. Jede Ent
 11. Zustellung aufs Handy macht der Server (Push, sonst Telegram), nicht mehr der Router.
 12. Die iPhone-App wird in GitHub Actions gebaut und über TestFlight installiert, damit kein Mac nötig ist.
 13. Reaktionen sind `app_event`-Annotationen an Nachrichten, weil Nachrichten append-only sind.
+14. Jev 1.13 über OpenRouter statt Strands Decider 2B lokal (Weck-Gate, Antwortform, Delegation, Gedächtnis-Gate). Nachrichten- und Mailtexte gehen dafür an OpenRouter. Mit GPU-Server wäre es lokal möglich (`14` Abschnitt 2).
+15. Kein eigener Graphiti-Dienst mit Graph-Datenbank. Seine Widerspruchs- und Gültigkeitslogik steckt im Hindsight-Fork (`04`).

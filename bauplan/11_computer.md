@@ -52,9 +52,9 @@ Schritte (als Runbook in `bauplan/` oder später in `docs/`, im Doku-Budget):
 9. Tailscale-ACL: Port 9222 und 8765 auf `tag:agent-pc` nur von `tag:comma-server`. RDP nur von Geräten des Nutzers.
 10. Erster Login-Durchgang: Der Nutzer meldet sich per RDP einmal im Agent-Chrome bei seinen Diensten an (Google, Amazon, Behörden-Portale, was er nutzt), inklusive 2FA, und hinterlegt seine virtuelle Karte mit Limit (`10` Abschnitt 7). Passwörter speichert Chromes Passwortmanager im Agent-Profil, der Assistent sieht sie nie.
 
-Abnahmeprüfung des Rechners: nach RDP-Trennung ein Screenshot über Windows-MCP ist nicht schwarz und hat 1920×1080; nach Neustart des VPS laufen Chrome und Windows-MCP ohne Eingriff.
+Abnahmeprüfung des Rechners: nach RDP-Trennung ein Screenshot über Windows-MCP ist nicht schwarz und hat 1920×1080; nach Neustart des VPS laufen Chrome und Windows-MCP ohne Eingriff; das Tool `Snapshot` liefert einen UIA-Baum des Chrome-Fensters.
 
-Wenn Windows-MCP auf Windows Server nicht sauber läuft (die Doku listet offiziell Windows 7 bis 11): Ausweichweg ist Cua Driver (`cua-driver serve` als Scheduled Task in der interaktiven Sitzung) mit einer kleinen Brücke, die seine Named Pipe `\\.\pipe\cua-driver` als Streamable-HTTP-MCP-Server mit Bearer-Auth im Tailnet anbietet. Gleiche Werkzeuge (Fensterzustand mit UIA-Baum und Bild, Klick per Element-Index oder Pixel, Tippen, Tasten).
+Schlägt eine dieser drei Prüfungen zweimal fehl (Screenshot nach RDP-Trennung schwarz oder falsche Größe, Start nach Neustart ohne Eingriff, `Snapshot` liefert keinen UIA-Baum), gilt Windows-MCP auf Windows Server als nicht tauglich (die Doku listet offiziell Windows 7 bis 11). Dann Ausweichweg Cua Driver (`cua-driver serve` als Scheduled Task in der interaktiven Sitzung) mit einer kleinen Brücke, die seine Named Pipe `\\.\pipe\cua-driver` als Streamable-HTTP-MCP-Server mit Bearer-Auth im Tailnet anbietet. Gleiche Werkzeuge (Fensterzustand mit UIA-Baum und Bild, Klick per Element-Index oder Pixel, Tippen, Tasten).
 
 ---
 

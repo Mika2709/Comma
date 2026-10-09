@@ -38,7 +38,7 @@ Unter `decide.use_cases.<name>` in der Server-Config:
 - `primary`: Adapter plus fest gepinnte Modell-ID (nie `latest`).
 - `shadows`: Liste weiterer Adapter plus Modell.
 - `timeout_ms`, `max_input_bytes`.
-- `bands`: Schwellen für die drei Stufen handeln, nachfragen, eskalieren (je Einsatz anders, siehe unten).
+- `bands`: Schwellen für die drei Stufen handeln, nachfragen, eskalieren. Startwerte und Bedeutung pro Einsatz in Abschnitt 2, Tabelle "Stufen".
 - `fallback`: Verhalten bei Fehler oder Timeout.
 
 ### Ablauf eines Calls
@@ -61,15 +61,29 @@ Felder: ID, Einsatz, Zeitpunkt, Sprache der Eingabe (de/en), Eingabe (vollständ
 | `wake` (Weck-Gate, `07`) | Choice: `still`, `hintergrund`, `melden` | Jev 1.13 | DeepSeek V4.1 Flash (Logprobs), Luna Decisions, Liquid d1 | `still` nur bei kalibriert P(still) ≥ 0,9, sonst mindestens `hintergrund`. Fehler: `hintergrund` (Router entscheidet). Harte Weck-Regeln übersteuern (siehe unten). |
 | `reply_form` (`06`) | Choice über 5 Formen, Noul `reaktion_jetzt` | Jev 1.13 | DeepSeek V4.1 Flash, Clef-flash | Unter 0,5 Top-Wahrscheinlichkeit: Vermerk `unsicher` in der Antwort-Richtung. Fehler: keine Antwort-Richtung. |
 | `delegation` (`08`) | Choice `selbst`, `helfer` | Jev 1.13 | DeepSeek V4.1 Flash | Nur als Richtung in der Antwort-Richtung. Fehler: keine Angabe. |
-| `memory_gate` (`05`) | Noul je Kandidat "Braucht der Router diesen Fakt für diese Nachricht?" | Reranker-Schwelle zuerst, Mittelband Jev 1.13 | DeepSeek V4.1 Flash | Über oberer Reranker-Schwelle: rein. Unter unterer: raus. Dazwischen Jev, P ≥ 0,5 rein. Fehler: Mittelband rein (lieber zu viel als zu wenig). |
+| `memory_gate` (`05`) | Noul je Kandidat "Braucht der Router diesen Fakt für diese Nachricht?" | Reranker-Schwelle zuerst, Mittelband Jev 1.13 | DeepSeek V4.1 Flash | Reranker ≥ 0,80 rein, < 0,30 raus, dazwischen Jev mit P ≥ 0,40 rein; Fakten unter 48 h je 0,10 niedriger. Fehler: Mittelband rein (lieber zu viel als zu wenig). |
 | `action_gate` (`10`) | Noul "Löst diese Aktion etwas Unumkehrbares oder Externes aus?" | Feste Regeln zuerst, dann Clef 27B (`cloudflare/clef` über OpenRouter) | Jev 1.13, DeepSeek V4.1 Flash | Regeltreffer: immer Freigabe. Sonst Modell: P ≥ 0,2 Freigabe. Das Modell kann nur hinzufügen, nie wegnehmen. Fehler: Freigabe. |
 | `auditor_trigger` (`05`) | Noul "Lohnt sich ein Audit dieses Turns?" | DeepSeek V4.1 Flash | Jev | Fehler: Audit läuft. |
 | `miniskill` (bestehend) | wie heute | Jev 1.13 | DeepSeek V4.1 Flash | wie heute |
 | `reminder_recheck` (bestehend, `home_mail.ex:667-697`) | wie heute | Jev 1.13 | DeepSeek V4.1 Flash | wie heute |
-| `voice_length` (bestehend, `router_decision.ex`) | wie heute | Jev 1.13 | keine | wie heute |
+| `voice_length` (bestehend, `router_decision.ex`) | wie heute | Jev 1.13 | DeepSeek V4.1 Flash | wie heute |
 | `watch` (`watch.c` über `decide`) | wie heute | Jev 1.13 | DeepSeek V4.1 Flash | Schwelle 9000 bp bleibt, aber auf kalibrierte Werte |
 
-Strands Decider 2B (lokal) ist nicht eingeplant, weil der VPS keine GPU hat. Kommt eine GPU dazu, ist es ein weiterer Schatten-Adapter (`logprob_llm` gegen einen lokalen llama.cpp- oder vLLM-Server).
+### Stufen (Startwerte)
+P ist die kalibrierte Wahrscheinlichkeit der besten Option (bei Noul: P(ja)). "Handeln" heißt: Das Ergebnis des kleinen Modells gilt. "Nachfragen" heißt: Die nächste Stufe entscheidet, das Ergebnis geht als Hinweis mit. "Eskalieren" heißt: der sichere Weg für diesen Einsatz. Werte stehen in `decide.use_cases.<name>.bands`, Anpassung in Phase 4 (`16`).
+
+| Einsatz | Handeln | Nachfragen | Eskalieren und was es auslöst |
+|---|---|---|---|
+| `wake` | P ≥ 0,90: `still` wird `settle(item, "quiet")`; `hintergrund` und `melden` gehen mit dieser Dringlichkeit an das große Modell (`07` Abschnitt 3) | 0,60 ≤ P < 0,90: großes Modell bewertet frei, Gate-Ergebnis nur als Hinweis | P < 0,60: großes Modell bewertet mit Vermerk "unsicher, im Zweifel melden", und das Item steht im nächsten Briefing. Nie `still` ohne großes Modell. |
+| `reply_form` | P ≥ 0,50: Antwort-Richtung ohne Vermerk | 0,30 ≤ P < 0,50: Vermerk `unsicher` mit den zwei besten Formen | P < 0,30: keine Antwort-Richtung, der Router entscheidet allein |
+| `delegation` | P ≥ 0,70: Richtung `selbst` oder `helfer` | 0,50 ≤ P < 0,70: Richtung mit Vermerk `unsicher` | entfällt (zwei Optionen, P ist immer ≥ 0,50) |
+| `memory_gate` | Reranker ≥ 0,80 rein, < 0,30 raus | dazwischen Jev, P ≥ 0,40 rein | Ausfall oder Timeout von Jev: Mittelband komplett rein (bis zum Budget aus `05`). Fakten unter 48 h: alle Werte 0,10 niedriger. |
+| `action_gate` | P < 0,20: ausführen ohne Freigabe | 0,20 ≤ P < 0,70: normale Freigabe (`10` Abschnitt 5) | P ≥ 0,70: Freigabe mit Warnhinweis und Begründung (Effektklasse, Ziel, erkannter Preis). Knöpfe wie in `10` Abschnitt 5. Regeltreffer und Ausfall laufen immer mindestens als normale Freigabe. |
+| `auditor_trigger` | P ≥ 0,30: Audit läuft | entfällt | entfällt (Ausfall: Audit läuft) |
+| `watch` | P(quiet) ≥ 0,90: still | entfällt | darunter: Router wird geweckt |
+| `miniskill`, `reminder_recheck`, `voice_length` | heutige Schwellen im Code, angewendet auf kalibrierte Werte | entfällt | heutiges Ausfallverhalten |
+
+Strands Decider 2B (lokal) ist nicht eingeplant, weil der VPS keine GPU hat. Das weicht von E63 ab und steht als Bestätigungsfrage in `README.md` (Frage 22). Sagt der Nutzer "GPU dazu": Hetzner GEX44 (dedizierter Server mit NVIDIA RTX 4000 SFF Ada, 20 GB VRAM) im selben Rechenzentrum wie der Linux-VPS, nur im Tailnet erreichbar (`tag:gpu`, ACL nur von `tag:comma-server`). Darauf vLLM als OpenAI-kompatibler Server: Strands Decider 2B immer, Clef 27B in 4-Bit mit Kontext 8.192 Tokens (Entscheidungs-Eingaben sind höchstens 12 KiB). Passen beide beim Test nicht gemeinsam in den Speicher, läuft dort nur Strands und Clef bleibt bei OpenRouter. Angesprochen werden beide über den Adapter `logprob_llm` (Label-Logprobs wie bei DeepSeek). Strands wird primär für `reply_form` und `delegation`, Clef lokal primär für `action_gate`; Jev und Clef über OpenRouter bleiben Schatten. Für diese Einsätze verlässt dann kein Nachrichtentext den eigenen Server. Schatten über OpenRouter bekommen dann nur noch eine Stichprobe von 10 Prozent der Fälle.
 
 ### Harte Regeln vor dem Weck-Gate
 Diese Fälle wecken immer, unabhängig vom Modell, weil ein manipulierter Text das Modell zum Schweigen bringen könnte:
@@ -82,7 +96,7 @@ Diese Fälle wecken immer, unabhängig vom Modell, weil ein manipulierter Text d
 
 ## 3. Labels aus echten Ergebnissen (automatisch)
 
-Der Nutzer labelt nichts. Labels entstehen aus Verhalten und aus einem nächtlichen Richter-Lauf mit einem starken Modell (das Hauptmodell, Batch, niedrige Priorität).
+Der Nutzer labelt nichts. Labels entstehen aus Verhalten und aus einem nächtlichen Richter-Lauf mit einem starken Modell (das Hauptmodell-Template, eigener Metering-Entrypoint `judge`, niedrige Priorität), täglich um 02:30 (Reihenfolge der Nachtjobs in `02` Abschnitt 5).
 
 | Einsatz | Positives/negatives Signal |
 |---|---|
@@ -90,19 +104,20 @@ Der Nutzer labelt nichts. Labels entstehen aus Verhalten und aus einem nächtlic
 | `reply_form` | Label = Form, die der Router tatsächlich wählte, korrigiert durch Nutzerreaktion: "kürzer", "zu lang", 👎 auf langer Antwort ergeben eine Stufe kleiner; "mehr Details", "und?", "wie genau?" eine Stufe größer. Richter bewertet 20 Prozent Stichprobe. |
 | `delegation` | Wenn der Router selbst arbeitete und dabei mehr als 6 Tool-Calls oder 40k neue Kontext-Tokens verbrauchte: `helfer` wäre richtig. Wenn ein Helfer mit höchstens einem Tool-Call fertig war: `selbst` wäre richtig. |
 | `memory_gate` | Positiv, wenn der Router den eingespielten Fakt nutzte (Richter prüft Antwort gegen Fakt) oder der Auditor ihn als fehlend meldete. Negativ, wenn eingespielt und ungenutzt. |
-| `action_gate` | Richter mit festen Regeln plus Kontext des Ergebnisses (Seite nach dem Klick, Mail versendet, Bestellung erzeugt). Fehlalarme sind billig, Versäumnisse teuer. |
+| `action_gate` | Feste Referenz ist der Katalog mit 200 Aktionen aus `15` (Suite "Freigaben"). Die umsetzende AI labelt ihn einmal beim Bau von Hand, der Nutzer labelt nichts. Echte Fälle bekommen ihr Label aus dem beobachtbaren Ergebnis (Seite nach dem Klick zeigt Bestellbestätigung, Mail liegt im Gesendet-Ordner, Bestellung erzeugt). Nur Fälle ohne beobachtbares Ergebnis labelt der Richter. Fehlalarme sind billig, Versäumnisse teuer. |
 
 ---
 
 ## 4. Kalibrierung und Wechsel
 
-- Nächtlicher Job pro Paar (Einsatz, Modell):
+- Nächtlicher Job pro Paar (Einsatz, Modell), direkt nach dem Richter-Lauf (02:30):
   - Labels der letzten 60 Tage, zufällig halbiert.
   - Isotone Regression auf der einen Hälfte, auf der anderen Hälfte messen: Brier-Score, ECE mit Bins gleicher Masse, Genauigkeit im Handlungsband mit Wilson-Intervall.
   - Getrennt für Deutsch und Englisch.
   - Robustheit: Optionsreihenfolge mischen und einen Meinungssatz anhängen, Flip-Rate messen.
   - Kalibrierungskarte speichern. Der Router verwendet ab dann diese Karte.
 - Wöchentlicher Wechsel-Job:
+  - Grundlage sind nur Labels aus echten Ergebnissen (Tabelle Abschnitt 3) plus beim `action_gate` der handgelabelte Katalog. Richter-Labels zählen für Kalibrierung, aber nicht für einen Wechsel.
   - Ein Schattenmodell wird primär, wenn es mindestens 300 Labels hat, der Brier-Score auf der Testhälfte mindestens 10 Prozent besser ist und der teure Fehler (verpasstes Wecken, fehlende Freigabe) nicht schlechter ist.
   - Wechsel nur zwischen gepinnten Versionen. Jeder Wechsel steht im Betriebs-Dashboard (`15`) mit Zahlen.
   - Beim Aktions-Gate gibt es keinen automatischen Wechsel weg von den festen Regeln. Nur das Zusatzmodell kann wechseln.
@@ -112,7 +127,7 @@ Der Nutzer labelt nichts. Labels entstehen aus Verhalten und aus einem nächtlic
 
 ## 5. Endpunkte und Modell-IDs
 
-Stand der Web-Recherche 2026-10-08. Die umsetzende AI prüft jede ID beim Einrichten mit einem echten Call und pinnt die datierte Version, wo es eine gibt.
+Stand der Web-Recherche 2026-10-08. Die umsetzende AI prüft jede ID beim Einrichten mit einem echten Call und pinnt die datierte Version, wo es eine gibt. Schlägt der Call fehl oder gibt es das Modell nicht: Das nächste Modell derselben Zeile aus Abschnitt 2 (erst die Schatten von links nach rechts) wird primär, der Ausfall steht im Dashboard (`15`). Hat ein Einsatz gar kein Modell mehr, gilt sein Ausfallverhalten aus Abschnitt 2. Das Aktions-Gate läuft dann nur mit Regeln und fragt bei allem außer `read` und `internal` nach, nie ohne Gate.
 
 ### OpenRouter Decisions
 - `POST https://openrouter.ai/api/alpha/decisions` (nicht `/api/v1/alpha/decisions`, das gibt 404). Header `Authorization: Bearer <OpenRouter-Key>`. Diese Modelle funktionieren nicht über `/chat/completions`.
@@ -143,7 +158,7 @@ Ausgabe-Tokens sind bei allen kostenlos.
 
 ## 6. Abnahme
 
-- Alle zehn Einsätze laufen über den Router, protokolliert, mit mindestens einem Schatten.
+- Alle zehn Einsätze laufen über den Router, protokolliert, mit mindestens einem Schatten, mit den Startwerten aus der Tabelle "Stufen".
 - `selfhost/configure.py` übernimmt OpenRouter-, Together- und DeepInfra-Keys aus `.env` und schreibt sie in die Config.
 - Kalibrierungs- und Wechsel-Job laufen als Oban-Cron, mit Ergebnis im Dashboard.
 - Tests: Adapter gegen aufgezeichnete Anbieter-Antworten, Normalisierung der Wahrscheinlichkeiten, Bänder, Ausfallverhalten (Timeout, 5xx, kaputtes JSON), harte Weck-Regeln, "Modell nimmt nie eine Freigabe weg".

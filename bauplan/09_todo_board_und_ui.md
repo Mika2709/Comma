@@ -146,11 +146,17 @@ Neue Router-Operationen `board.list`, `board.add`, `board.update`, `board.comple
 - Rückweg von Widgets: Eine Änderung im Widget (Häkchen, Auswahl) schreibt den Zustand und erzeugt ein Delta-Ereignis für den Router ("Widget X: Feld Y = Z"), wie beim Board. Kein "Add to chat"-Umweg mehr nötig.
 
 ### iPhone und Web
-- Web: `dynamicUiDocument()` von einem eigenen Sandbox-Origin mit CSP-Header ausliefern und `supportsDynamicUiWidgets` (`cl/packages/app/src/runtime-chat/nativePlatformActions.ts:3-5`) für Web freischalten. Vorher Sicherheitsprüfung des Origin-Aufbaus (Electron hat ein Request-Budget in `clients/apps/electron/src/main/security.ts:62+`, Web braucht ein Gegenstück).
+- Web: `dynamicUiDocument()` vom eigenen Origin `https://ui.<domain>` ausliefern (Aufbau in `02` Abschnitt 2) und `supportsDynamicUiWidgets` (`cl/packages/app/src/runtime-chat/nativePlatformActions.ts:3-5`) für Web freischalten. Feste Checkliste, jeder Punkt mit eigenem Test:
+  1. Eigener Hostname ohne Cookies: Caddy entfernt `Set-Cookie` auf `ui.<domain>`. Alle Comma-Cookies bleiben host-only, also ohne `Domain`-Attribut (heute so in `sa/comma_web/lib/comma_web/session_cookie.ex:43-80`). Test: Request an `ui.<domain>` trägt kein Cookie von `app.` oder `api.`.
+  2. CSP: wie `dynamicUiCsp` (`cl/packages/chat-contract/src/dynamic-ui/runtime.ts:8-9`), aber `script-src`, `style-src`, `font-src` nur `'unsafe-inline'` plus `https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com https://fonts.gstatic.com`, `img-src` nur `data:` plus dieselben Hosts, `connect-src 'none'`, dazu `frame-ancestors https://app.<domain>`. Grund: Im Browser kann der Client die Requests eines Sandbox-Frames nicht zählen wie Electron (`clients/apps/electron/src/main/security.ts:62-120`: 128 Requests pro 10 s, 8 gleichzeitig, Cookies entfernt). Die feste Host-Liste ersetzt dieses Budget. Bilder von anderen Hosts bettet der Agent als `data:`-URL ein. Test: Laden von `https://example.com/x.png` wird blockiert.
+  3. iframe im Web-Client mit `sandbox="allow-scripts"`, nie `allow-same-origin` (heute so in `DynamicUiWidget.tsx:541`). Test prüft das gerenderte Attribut.
+  4. Nur `/runtime/` liefert etwas, jeder andere Pfad 404 (wie Electron `comma-ui://runtime/`). Test.
+  5. Daten und Zustand kommen nur über den gebundenen `MessagePort`, wie in Electron. Test: Widget ohne Port zeigt nichts an.
+- iPhone: gleiche CSP-Variante wie Web.
 - iPhone: `WKWebView` mit URL-Scheme-Handler, der dieselbe Runtime ausliefert, plus Swift-Message-Bridge für Zustand und Ereignisse. `ChatComponents.swift` um den Blocktyp `dynamic_ui` ergänzen. Board, Fragen, Freigaben und Reaktionen sind auf dem iPhone nativ (nicht Webview).
 
-### Weitere Panels (später, nach dem Rest)
-- Anheftbare Panels wie bei Hark: Ein Widget mit Zustand kann an die rechte Leiste angeheftet werden (unter dem Board). Panel-Pins mit stabiler `panel_id` im `ConversationGroupActor`, `ui.create` bekommt optional `panel_id`. Nur bauen, wenn Board, Picker und Vorlagen fertig sind.
+### Weitere Panels (Paket P19 in `16`, nach Board und iPhone)
+- Anheftbare Panels wie bei Hark: Ein Widget mit Zustand kann an die rechte Leiste angeheftet werden (unter dem Board). Panel-Pins mit stabiler `panel_id` im `ConversationGroupActor`, `ui.create` bekommt optional `panel_id`. Gebaut wird erst, wenn Board, Picker, Vorlagen und iPhone fertig sind. Abnahme: Abnahmetest 14 aus `16`.
 
 ---
 

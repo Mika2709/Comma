@@ -55,7 +55,7 @@ Pfad-Abkürzungen: `sa/` = `systems/apps/`, `cl/` = `clients/`, `cn/` = `systems
 
 ## 2. Unsichtbare Helfer
 
-### Task-Karten weg
+### Task-Karten weg (V24)
 - `tool_policy.ex:177`: Pflichtkarte streichen. Neue Regel: "Erwähne Helfer und Tasks nicht. Sprich vom Ergebnis, nicht vom Weg. Wenn der Nutzer fragt, was läuft, antworte aus dem Board."
 - `manuals.ex:697`: Die Pflicht, Tasks als Inline-`conversation_ref` zu senden, für Comma Home streichen. Ein `conversation_ref` ist nur noch erlaubt, wenn der Nutzer ausdrücklich nach einer Task fragt. Slack und Telegram bleiben unverändert (dort eigene Karten).
 - `migration_notice.ex`: neue Notice-Version 53, die Version 16 in `@superseded_versions` aufnimmt und die neue Regel nennt.

@@ -110,7 +110,7 @@ Jede Entscheidung landet im `decision_log` (`14`) und in einem eigenen Freigabe-
 ### Stehende Erlaubnisse
 - Gespeichert als Regel-Datensatz: Owner, Ziel-Muster, Zeitpunkt, Herkunft (Freigabe-ID). In den Einstellungen sichtbar und löschbar.
 - Der Assistent kann keine stehende Erlaubnis selbst anlegen.
-- Prüfe mit `DOMAIN_CONCEPTS.md`, ob ein bestehendes Konzept (Capability-Grant, Device-Authorization) das abbildet. Sonst neuer Eintrag "Standing action permission" mit Owner Group.
+- Domänenkonzept (entschieden): neuer Eintrag "Standing action permission" in `docs/architecture/DOMAIN_CONCEPTS.md`. Warum Wiederverwendung nicht reicht: "Capability Request" (`DOMAIN_CONCEPTS.md:451`) ist eine einzelne Entscheidungsanfrage mit Ablauf und einem Gewinner-Ergebnis, ihr Beleg wird einmal verbraucht. Eine stehende Erlaubnis gilt dagegen für viele künftige Aufrufe, bis der Nutzer sie löscht. Eintrag: Identität = eigene ID; Owner = Group des Nutzers, Mutation nur durch den Nutzer (Freigabe-Antwort "Immer erlauben" oder Löschen in den Einstellungen); Lebenszyklus = angelegt, gelöscht (kein Ablauf); Beziehungen = Herkunft auf die `action_approval`-Anfrage, gilt für ein Ziel-Muster aus Abschnitt 5. Im selben PR wie P5 (`16`).
 
 ---
 

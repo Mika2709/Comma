@@ -36,7 +36,7 @@ Der Nutzer braucht dafür keinen Mac: Gebaut wird in GitHub Actions auf einem ma
 
 ---
 
-## 2. Push für Chat und Meldungen
+## 2. Push für Chat und Meldungen (F27, V67)
 
 ### Zustellregel (Server, deterministisch)
 Neues Modul `Comma.HomeDelivery`, ausgelöst, wenn der Assistent eine Nachricht in Home anhängt (Abo auf die Conversation-Mutationen, Muster `native_push_listener.ex:29-35`):
@@ -58,7 +58,11 @@ Folge: Der Router muss nicht mehr selbst an Telegram senden. `proactive_delivery
 - Task-Status-Push (bestehend) wird abgeschaltet, weil Helfer unsichtbar sind (`08`).
 
 ### Anwesenheit (F22)
-- `sessions.ex:208-220`: auch `client_kind` `ios` und `web` zählen. Die iOS-App meldet Aktivität im Vordergrund alle 60 Sekunden über die bestehende Route.
+Datei `systems/apps/comma_core/lib/comma/accounts/sessions.ex`:
+- `touch_active/2` (`:183-206`) nimmt heute nur `client_kind` `electron` an und gibt sonst `{:error, :not_desktop_app}`. Neu: auch `ios` und `web` (nicht eingeschränkte Sessions, gleiche Bedingungen wie bei `electron`). Route bleibt `/v1/comma/auth/session/activity`.
+- Der Web-Client meldet Aktivität wie Electron (`clients/apps/electron/src/main/modules/session/activity-reporter.ts`): alle 60 Sekunden, aber nur, wenn es in den letzten 5 Minuten eine Eingabe gab und der Tab sichtbar ist. Die iOS-App meldet im Vordergrund alle 60 Sekunden.
+- `HomeDelivery` nutzt eine eigene Abfrage `active_within?(user_id, 120)`: irgendeine Session (`electron`, `ios`, `web`) mit `active_at` in den letzten 2 Minuten. `present?/2` (`:209-220`, 10 Minuten, nur `electron`) bleibt für die bestehenden Aufrufer unverändert.
+- Tests: `touch_active` für `ios` und `web` ok, für eingeschränkte Sessions abgelehnt; `HomeDelivery` schickt keinen Push, wenn das Web vor 90 Sekunden aktiv war, und schickt einen nach 3 Minuten Ruhe.
 
 ---
 

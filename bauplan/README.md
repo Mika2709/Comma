@@ -16,7 +16,7 @@ Stell dem Nutzer diese Fragen in einer einzigen Nachricht. Kurz, ohne Erklärung
 1. Hauptmodell: Welcher Anbieter und welches Modell für den Hauptchat (Router) und die Helfer (Worker)? Empfehlung: Claude Opus 5.5 (`claude-opus-5-5`) über die Anthropic-API, oder ein vorhandenes Claude- oder Codex-Abo (Comma unterstützt Abo-Konten). API-Key oder Abo-Login.
 2. Together-AI-API-Key (DeepSeek V4.1 Flash für Cleanup-Crew, Erfasser, Auditor, ersten Verifier und als Entscheidungsmodell-Kandidat).
 3. OpenRouter-API-Key (Entscheidungsmodelle Jev, Luna Decisions, Clef, Clef-flash, Liquid d1, das Modell des zweiten Verifiers, Ausweichweg für DeepSeek).
-4. DeepInfra-API-Key (Qwen3-Embedding und Qwen3-Reranker).
+4. DeepInfra-API-Key (Qwen3-Embedding und Qwen3-Reranker). SiliconFlow-API-Key nur, falls der Reranker über DeepInfra beim Einrichten scheitert (`04` Abschnitt 10); dann fragst du ihn in dem Moment danach.
 5. Eine virtuelle Karte mit Limit für Käufe des Assistenten (E67). Er trägt sie später selbst per RDP in das Browserprofil auf dem Windows-VPS ein, nie im Chat.
 6. Composio-API-Key und verbundenes Gmail-Konto (E-Mail-Weckung). Kalender, Drive, Slack nur, wenn er sie nutzt.
 7. Exa-API-Key (Websuche der Agenten), falls er Websuche will. Empfehlung: ja.
@@ -27,7 +27,7 @@ Stell dem Nutzer diese Fragen in einer einzigen Nachricht. Kurz, ohne Erklärung
 **Maschinen**
 11. Linux-VPS für den Comma-Server: Empfehlung Hetzner Cloud CPX42 (8 vCPU, 16 GB). IP, SSH-Zugang. Wenn er noch keinen hat: bestellen lassen, Ubuntu 24.04.
 12. Windows-VPS mit echtem Desktop (RDP) für die Computersteuerung des Assistenten: Empfehlung Contabo Cloud VPS 30 mit Windows Server 2022 und Lizenz von Contabo (8 vCPU, 24 GB). IP, Administrator-Passwort. Details in `11_computer.md`.
-13. Domain für HTTPS (Comma braucht vier Origins unter einer Domain, siehe `02`). DNS-Zugang (für Let's-Encrypt-Zertifikate).
+13. Domain für HTTPS (Comma braucht fünf Hostnamen unter einer Domain, siehe `02`). DNS-Zugang (für Let's-Encrypt-Zertifikate).
 14. Tailscale-Konto (privates Netz zwischen beiden VPS, seinem Rechner und dem Handy).
 15. SMTP-Zugang für Login-Codes (Host, Port, Absender, Benutzer, Passwort), z.B. vom eigenen Mail-Anbieter. Bei öffentlichem Betrieb Pflicht.
 16. Backup-Speicher: Hetzner Storage Box BX11 (oder Backblaze B2), Zugangsdaten. Dazu ein restic-Passwort, das er sicher aufbewahrt.
@@ -40,8 +40,20 @@ Stell dem Nutzer diese Fragen in einer einzigen Nachricht. Kurz, ohne Erklärung
 19. Menschliche Abnahme von Helfer-Ergebnissen ist standardmäßig aus. Schutz kommt nur über das Aktions-Gate für unumkehrbare Aktionen.
 20. Beide proaktiven Budgets fallen ersatzlos weg. Es bleibt nur ein Schleifenschutz, der identische Wiederholungen desselben Ereignisses blockiert, nie unterschiedliche Ereignisse.
 21. Hindsight läuft als eigener, geforkter Dienst neben Comma (nicht nach Elixir portiert).
+22. Diese Punkte sind ebenfalls für ihn entschieden (Begründungen in `01`, letzter Abschnitt). Frag gesammelt: "Widerspruch bei einem davon?"
+    - a) Weck-Gate, Antwortform, Delegation und Gedächtnis-Gate laufen über Jev bei OpenRouter statt lokal mit Strands Decider; das Aktions-Gate nutzt Clef bei OpenRouter statt selbst gehostet. Dafür gehen Nachrichten- und Mailtexte an OpenRouter. Alternative: ein GPU-Server (Hetzner GEX44, etwa 200 € im Monat, Preis beim Bestellen prüfen), dann bleiben diese Texte auf seinen Servern (`14` Abschnitt 2, letzter Absatz).
+    - b) Zwei Maschinen: Linux-VPS für Comma, Windows-VPS als Rechner des Assistenten, verbunden über Tailscale.
+    - c) Gmail bleibt bei Composio, ohne den Filter `is:important`. Das Weck-Gate entscheidet.
+    - d) Interne Prompts Englisch, alles Sichtbare Deutsch.
+    - e) Die linke Vorschlagsleiste geht im Board auf.
+    - f) Embeddings und Reranker über DeepInfra.
+    - g) Desktop-Steuerung über Windows-MCP.
+    - h) Zustellung aufs Handy macht der Server (Push, sonst Telegram), nicht der Router.
+    - i) iPhone-App über GitHub Actions und TestFlight, kein Mac nötig.
+    - j) Reaktionen sind eigene Ereignis-Nachrichten im Verlauf.
+    - k) Kein eigener Graphiti-Dienst; dessen Widerspruchslogik steckt im Gedächtnis-Fork (`04`).
 
-Wenn er bei 19 bis 21 widerspricht, gilt seine Antwort. Trag sie in `01_zielbild_und_entscheidungen.md` ein.
+Wenn er bei 19 bis 22 widerspricht, gilt seine Antwort. Trag sie in `01_zielbild_und_entscheidungen.md` ein und zieh die betroffenen Dateien nach. Sagt er bei 22a "GPU dazu", frag nach dem Hetzner-Zugang für den GPU-Server.
 
 ---
 
@@ -67,7 +79,7 @@ Das ist Teil des Produkts und gilt auch für dich während des Baus.
 |---|---|
 | `01_zielbild_und_entscheidungen.md` | Was der Assistent am Ende tut, alle verbindlichen Entscheidungen, was bewusst nicht gebaut wird |
 | `02_infrastruktur_und_selfhost.md` | VPS-Aufbau, Netz, Dienste, Modelle und Anbieter, Selbsthost-Reparaturen, Backups |
-| `03_kontext_und_rebuild.md` | Endlos-Chat: Rebuild bei Cache-Ablauf, 100k-Schwelle, Notbremse, Cleanup-Crew, Verifier, Lean-Änderungen |
+| `03_kontext_und_rebuild.md` | Endlos-Chat: Rebuild bei Cache-Ablauf, 100k-Schwelle, Notbremse, Cleanup-Crew, Verifier, Lean-Änderungen, Cache pro Anbieter, Thinking-Bindung bei Anthropic |
 | `04_gedaechtnis.md` | Gedächtnisdienst (Hindsight-Fork), Datenmodell, Gültigkeit, Herkunft, Zeit, Suche, Erfassung |
 | `05_hidden_helper.md` | Abruf vor jedem Turn, Einspielen, Auditor nach dem Turn, Gedächtnis für Helfer |
 | `06_antwortform_und_reaktionen.md` | Antwortform-Entscheidung, Sende-Tool, mehrere Nachrichten, Reaktionen |
@@ -96,6 +108,8 @@ Das ist Teil des Produkts und gilt auch für dich während des Baus.
   - Tests nach Verhalten, nicht nach Implementierungstext. Fixes brauchen Regressionstests.
   - PR-Titel: `feat: ...`, `fix: ...`, `refactor: ...`.
 - Die Skill `ste-writing`, auf die `AGENTS.md` verweist, liegt nicht in diesem Checkout. Schreib Doku in kurzen, aktiven Sätzen.
+- Zitierte Prompt-Regeln in diesem Plan sind sinngemäß und meist auf Deutsch. Schreib sie im Prompt, in Tool-Beschreibungen und Skills auf Englisch. Nur Texte, die der Nutzer sieht, sind Deutsch.
+- Ist das Hauptmodell ein Anthropic-Modell, kommt `03` Abschnitt 7 (Thinking-Bindung) vor jeder anderen Änderung am Request-Aufbau (Paket P9 in `16`). Sonst scheitern Requests mit Fehler 400 oder verlieren ihr Thinking.
 - Der Nutzer betreibt sein eigenes Deployment. Die Regeln in `AGENTS.md` zu Staging und Produktion von AFK-surf betreffen ihn nicht. Er deployt seinen Fork-Main auf seinen VPS (`02`).
 - Halte Änderungen modular (eigene Module, klare Schalter), damit Upstream-Updates von AFK-surf/Comma weiter einfließen können.
 - Arbeite parallel in Worktrees, wo `16_reihenfolge_und_abnahme.md` es erlaubt.
@@ -113,6 +127,7 @@ Das ist Teil des Produkts und gilt auch für dich während des Baus.
 | Group | Der Arbeitsbereich, zu dem Router, Tasks, Geräte und Pins gehören. |
 | Rebuild | Neuaufbau des Router-Kontexts (ersetzt die heutige Compaction). Erledigtes wird verdichtet, Offenes bleibt wörtlich. |
 | Watermark | Grenze im Verlauf: davor steht die Summary, danach die Live-Nachrichten. |
+| Thinking-Bindung | Bei Anthropic ab Opus 5.5 gilt ein Thinking-Block nur, solange alles vor ihm byte-gleich bleibt (`03` Abschnitt 7). |
 | Cleanup-Crew | Parallele, günstige Modell-Calls mit je einer festen Aufgabe beim Rebuild. Keine sichtbaren Agenten. |
 | Verifier | Prüft das Gesamtergebnis der Crew und lässt Fehler automatisch korrigieren. |
 | Hidden Helper | Abruf vor jedem Turn plus Auditor nach jedem Turn. Schreibt dem Router nie direkt. |

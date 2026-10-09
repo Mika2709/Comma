@@ -59,7 +59,7 @@ Zusätzlich zwei unabhängige Fragen im selben Call:
 ### Änderungen im Kern
 - Vor-Turn-Entscheidung: neuer `TurnFormSelector` nach dem Muster `MiniskillSelector`. Start in `resolve_round_config/3` (`sa/salix_agent/lib/salix_agent/internal_session_actor.ex:2331-2374`) als `DependencyJob` mit 1,5 s Frist parallel zum Round-Config-Build, `finish` joint (wie `MiniskillSelector.start/finish`, `sa/salix_agent/lib/salix_agent/miniskill_selector.ex:8-107`). Das Ergebnis hält der Actor für diese Aktivierung, der neue Context-Provider liest es und schreibt die "Antwort-Richtung" ins Delta.
 - `opening` entfernen: Flag `opening=on` in `Request.turnMarker` (`VK/Session/Request.lean:142-164`) und Text `opening` in `VK/Session/TurnReminders.lean:16` streichen. Im statischen Katalog `## Turn reminders` (`:22-28`) die Regel ergänzen: "Antworte in der kleinsten Form, die alles Wichtige enthält. Eine Reaktion ist eine vollständige Antwort. Schweigen ist erlaubt. Folge der Antwort-Richtung, wenn eine da ist." Kein neues Event, kein Reducer.
-- Eine Katalogänderung ändert den Prompt-Snapshot und baut den Cache einmal pro Session neu auf (`VK/Session/Query/Reply.lean:398-405`). Einmalig und unkritisch.
+- Die Katalogänderung landet erst beim nächsten Rebuild im Prompt-Snapshot (`03` Abschnitt 7, Schritt 2). Bis dahin trägt ein Migrationshinweis (`migration_notice.ex`, gleiche Version wie die Notice aus `08`, also 53) die neue Regel ins Delta. Eine direkte Änderung des Snapshots mitten in der Session würde bei Anthropic ab Opus 5.5 alle Thinking-Blöcke ungültig machen.
 - Tests: `systems/native/verified_kernel/test/` (Request-Bau ohne `opening`), `systems/apps/salix_agent/test/miniskill_selector_test.exs` als Vorlage für `turn_form_selector_test.exs`. `systems/native/verified_kernel/scripts/check.sh` muss grün sein.
 - `resources/salix-system-files/skills/proactive/SKILL.md`: Abschnitt "Write the message" auf dieselben Formen umstellen. Die Pflicht zur abschließenden Frage streichen (Report V19). Reine Information endet ohne Frage.
 
@@ -103,7 +103,7 @@ Diese Regeln stehen im Router-Prompt (Abschnitt "Writing style") und in der Besc
 ### Datenmodell
 - Eine Reaktion gehört zu einer Nachricht: Ziel-Nachricht, Akteur (`assistant` oder `user`), Emoji, Zeitpunkt.
 - Pro Akteur höchstens eine Reaktion pro Nachricht. Die neueste gilt, leeres Emoji entfernt.
-- Nachrichten sind append-only (`sa/salix_im/lib/salix_im/conversation_message.ex:18`, `ConversationServer` hat kein Edit, `conversation_server.ex:30-624`). Deshalb ist eine Reaktion eine eigene `app_event`-Nachricht mit `metadata.event_type = "message.reaction"`, `target_message_id`, `actor`, `emoji`. Muster: `message.redelivery` (`sa/salix_im/lib/salix_im/conversation_actor.ex:705-753`).
+- Nachrichten sind append-only: `sa/salix_im/lib/salix_im/conversation_message.ex:18` zeigt, dass die Art `app_event` existiert, und `conversation_server.ex` (`:30-624`) hat keine Edit- oder Update-Funktion für Nachrichten. Deshalb ist eine Reaktion eine eigene `app_event`-Nachricht mit `metadata.event_type = "message.reaction"`, `target_message_id`, `actor`, `emoji`. Muster: `message.redelivery` (`sa/salix_im/lib/salix_im/conversation_actor.ex:705-753`).
 - Keine neue Domänen-Entität. Ergänze in `docs/architecture/DOMAIN_CONCEPTS.md` beim Eintrag Message: "Reactions are app_event annotations; the latest per actor and target wins."
 - Anhängen nur über `ConversationServer.append_group_conversation_agent_message` (Assistent, `conversation_server.ex:374`) bzw. `append_group_conversation_message/3` (Nutzer, `:134-135`).
 - Clients: Beide filtern `app_event` per Sperrliste (Web `cl/packages/app/src/components/chat/model/conversationChannel.ts:2313-2327`, iOS `cl/packages/apple-core/Sources/CommaCore/Models.swift:344-348`). `message.reaction` dort aufnehmen und stattdessen als Badge an der Ziel-Blase rendern (wie Tapbacks bei iMessage). Projektion "neueste Reaktion pro Akteur und Ziel" im Client-Modell.
@@ -149,7 +149,7 @@ Freie Wahl darüber hinaus ist erlaubt, wenn sie besser passt (🎉 bei guten Na
 ## 4. Lernendes Kommunikationsprofil
 
 - Korrekturen wie "kürzer", "mehr Details", "keine Emojis", "schreib mir das als Liste" werden vom Gedächtnis-Erfasser (`04`) als Fakten der Kategorie `kommunikation` gespeichert, mit Gültigkeit und Herkunft.
-- Das Profil (höchstens 15 Einträge, gültige Fassung) fließt in jede Antwortform-Entscheidung ein und steht im festen Kernblock des Router-Kontexts (`03`, Abschnitt Kernfakten).
+- Das Profil (höchstens 15 Einträge, gültige Fassung) fließt in jede Antwortform-Entscheidung ein und steht im Kernblock des Router-Kontexts (`03` Abschnitt 2).
 - Widersprüche löst dieselbe Invalidierung wie bei allen Fakten (neuere Vorliebe ersetzt ältere).
 
 ---

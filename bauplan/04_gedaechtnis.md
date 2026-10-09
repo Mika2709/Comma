@@ -29,7 +29,7 @@ Ziel: Der Assistent weiß alles Relevante, wie ein echter Assistent. Er merkt si
 | Comma-Client | Neues Elixir-Modul `SalixAgent.MemoryService` | HTTP-Client, Zuordnung von Nachrichten-IDs, Tools |
 | Erfasser | Comma, Oban-Job nach jedem Turn | Schickt neue Nachrichten an den Dienst zur Faktenextraktion |
 | Crew-Gedächtnis-Schreiber | Rebuild (`03`) | Zweite Chance für übersehene Fakten, Themenseiten, Tagesseite |
-| Nächtliche Pflege | Comma, Oban-Cron 03:30 Nutzerzeit | Ablauf von Status-Infos, Themenseiten, Entitäten zusammenführen, Kernblock-Kandidaten |
+| Nächtliche Pflege | Comma, Oban-Cron 03:00 Nutzerzeit (Reihenfolge der Nachtjobs: `02` Abschnitt 5) | Ablauf von Status-Infos, Themenseiten, Entitäten zusammenführen, Kernblock-Kandidaten |
 | Abruf | Hidden Helper (`05`) und Tools | Vor jedem Turn und auf Anfrage |
 | Kernblock | Router-Kontext, fester Teil | Die wichtigsten Fakten über den Nutzer, immer im Kontext (`03`) |
 
@@ -37,7 +37,7 @@ Entscheidung: Hindsight läuft als geforkter Dienst, nicht nach Elixir portiert.
 
 Graphiti wird nicht betrieben (braucht Neo4j, FalkorDB, Kuzu oder Neptune). Übernommen werden nur das Gültigkeitsmodell und die Prompt-Logik für Widersprüche (Apache-2.0, Attribution im Fork beibehalten).
 
-Domänenkonzept: Prüfe `docs/architecture/DOMAIN_CONCEPTS.md`. Bridge-for-Teams hat "Project knowledge assertion" mit `supersedes_id` und `observed_at`. Die persönlichen Fakten sind dieselbe Idee in anderem Scope. Wenn das Konzept auf persönlichen Scope erweiterbar ist, erweitere es. Sonst neuer Eintrag "Personal memory fact" (Owner: Group des Nutzers, Speicher: Gedächtnisdienst, Lebenszyklus unten, Beziehungen zu Message, Task, Board-Item). Der Eintrag muss die Gründe aus diesem Abschnitt nennen.
+Domänenkonzept (entschieden): neuer Eintrag "Personal memory fact" in `docs/architecture/DOMAIN_CONCEPTS.md`. Warum Wiederverwendung nicht reicht: "Project Knowledge / Assertion / Alias" (`DOMAIN_CONCEPTS.md:1137`) steht unter den BFT-Produktkonzepten (Abschnitt 9), ist geteiltes Projektwissen eines Bridge-for-Teams-Projekts und lebt in einer anderen App. Persönliche Fakten gehören genau einem Nutzer, haben eigene Gültigkeitsregeln (Kategorie, Lebensdauer, Ablauf) und einen eigenen Speicher. Eintrag: Identität = Fakt-ID des Gedächtnisdienstes; Scope und Owner = Group des Nutzers; autoritativer Speicher = Gedächtnisdienst (Hindsight-Fork); Lebenszyklus = Abschnitt 3 (aktiv, ersetzt, abgelaufen, gelöscht); Beziehungen = Herkunft auf Message-IDs, optional Task und Board-Item; Code-Links = Comma-Client und `services/hindsight`. Im selben PR wie P2 (`16`).
 
 ---
 
@@ -118,7 +118,7 @@ Zeit ist ein eigenes Konzept (E23, E24).
 
 ---
 
-## 5. Suche und Ranking
+## 5. Suche und Ranking (V02)
 
 Pipeline pro Abfrage:
 1. Anfrage bauen: aktuelle Nutzernachricht, die letzten 3 Nachrichten, offene Board-Items mit Bezug, Entitäten aus der Nachricht.
